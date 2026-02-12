@@ -1,0 +1,192 @@
+# Domain 15: Development Standards & Conventions (The Code of Law)
+
+**기반 데이터**:
+- **Consolidated Domains**: All Domains (Foundation).
+- **Philosophy**: "Consistency is King" (일관성이 왕이다) & "Infra-Aligned" (인프라 일체화).
+
+---
+
+## 1. Architecture & Structure (아키텍처)
+
+### 1.1 Domain-Driven Colocation (도메인 주도 배치)
+- **Principle**: "기능(Feature)이나 기술(Page)이 아닌 도메인(Business Domain)이 기준이다."
+- **Directory Structure**:
+  /src
+  ├── app/          # Expo Router (Pages Only - No Logic, Just Routing)
+  ├── shared/       # Domain Agnostic UI/Utils (Button, Icon, Global Types)
+  ├── domains/      # Business Logic Core (User, Feed, Shop)
+  │   ├── auth/     # [Inside Domain]: api, components, hooks, store, types
+  │   ├── scan/
+  │   └── feed/
+  └── infra/        # External Systems (Sentry, Supabase, Network Client)
+
+- **Barrier Rule (경계 원칙)**:
+  - 도메인 간 참조(import)는 오직 해당 폴더의 `index.ts`를 통해서만 허용한다.
+  - 내부 파일 직접 참조 금지 (Encapsulation).
+  - Bad: `import ... from '@domains/auth/components/LoginButton'` (X)
+  - Good: `import { LoginButton } from '@domains/auth'` (O)
+
+### 1.2 Network Layer Strictness (D13 인프라 연결 - 생존 수칙)
+- **Problem**: 개발자가 `axios.get`이나 `fetch`를 개별적으로 사용하면, D13에서 구축한 HTTP/3(QUIC) 통신과 Connection Pooling 혜택을 받지 못해 속도가 3배 느려짐.
+- **Rule**: 컴포넌트나 Custom Hook 내부에서 `fetch()`, `axios`, `XMLHttpRequest`를 **직접 호출하는 것을 엄격히 금지**한다.
+- **Solution**: 반드시 `/infra/network/client.ts`에 정의된 **`apiClient` (Cronet Wrapper)** 만을 import하여 사용해야 한다.
+- **Enforcement**: PR 리뷰 시 코드 내에 `axios`나 `fetch` 문자열이 발견되면 즉시 **Reject** 처리.
+
+---
+
+## 2. Naming Convention (명명 규칙)
+
+### 2.1 Variables (Boolean Question)
+- **Rule**: `boolean` 타입 변수는 반드시 **'질문(Question)'** 형태여야 한다. (읽는 사람이 Yes/No로 답할 수 있어야 함).
+  - `is...`: 상태 (`isVisible`, `isHidden`, `isActive`)
+  - `has...`: 소유/포함 (`hasPermission`, `hasTicket`)
+  - `should...`: 조건부 렌더링/로직 (`shouldRender`, `shouldRetry`)
+  - `can...`: 권한/능력 (`canEdit`, `canWithdraw`)
+- **Ban List**:
+  - `loading` (X) -> `isLoading` (O)
+  - `open` (X) -> `isOpen` (O)
+  - `check` (X) -> `isChecked` (O)
+
+### 2.2 Functions (Action Verb)
+- **Handlers (Event Callback)**: `handle` + 명사 + 동사
+  - 예: `handleSubmitButtonPress`, `handleInputChange`
+- **Props (Parent to Child)**: `on` + 명사 + 동사
+  - 예: `onPress`, `onValueChange`
+- **API Functions**: 동작을 명확히 하는 동사 사용
+  - `fetchUser` (조회), `submitPost` (제출), `removeComment` (삭제), `updateProfile` (수정).
+
+---
+
+## 3. Type Safety & Integrity (타입 무결성)
+
+### 3.1 Strict Typing
+- **Config**: `tsconfig.json`에서 `"strict": true`, `"noImplicitAny": true` 필수 설정.
+- **Zero Any Policy**: 코드 내에 `any` 타입 사용 적발 시 CI/CD 빌드 단계에서 실패 처리.
+  - 불가피하게 외부 라이브러리 등으로 타입을 모를 경우 `unknown`을 사용하고, 반드시 Type Guard(`typeof`, `instanceof`, `zod parse`)를 통해 타입을 좁혀서(Narrowing) 안전하게 사용해야 한다.
+
+### 3.2 Branded Types (ID Safety)
+- **Problem**: `UserId`(String) 자리에 실수로 `PostId`(String)를 넣어도 컴파일 에러가 나지 않아, 런타임에서 엉뚱한 데이터를 삭제하거나 조회하는 사고 발생.
+- **Solution**: 'Branded Type' 기법을 도입하여 String끼리도 명확히 구분한다.
+  - `type Brand<K, T> = K & { __brand: T };`
+  - `export type UserId = Brand<string, "UserId">;`
+  - `export type PostId = Brand<string, "PostId">;`
+  - 효과: `fetchPost(userId)` 처럼 잘못된 ID를 넣으면 컴파일 에러(Red Line)가 즉시 발생.
+
+### 3.3 Typed Localization (D14 글로벌 연결)
+- **Rule**: `i18n.t('invalid.key')`와 같이 존재하지 않는 키를 사용하거나 오타를 내면 **컴파일 에러**가 발생해야 한다.
+- **Implement**: `i18next-ts` 또는 유사 라이브러리를 사용하여, JSON 리소스 파일(`locales/en.json`)의 키 구조를 TypeScript 타입으로 자동 변환 및 동기화한다.
+  - 효과: 번역 누락으로 인해 유저에게 키값(`home.title`)이 그대로 노출되는 사고 방지.
+
+---
+
+## 4. Component Patterns (컴포넌트 패턴)
+
+### 4.1 VAC (View Asset Component) Pattern
+- **Rule**: UI 컴포넌트(`View`)는 멍청해야(Dumb) 한다. 내부 로직이 복잡하면 안 된다.
+- **Threshold**: 컴포넌트 내에 `useEffect`, `useState`가 합쳐서 **10줄 이상** 넘어가면 리팩토링 대상이다.
+- **Action**:
+  - 비즈니스 로직, 상태 관리, API 호출은 **`useLogic.ts` (Custom Hook)**으로 분리한다.
+  - UI 컴포넌트(.tsx)는 오직 `props`를 받아서 화면을 그리는 역할만 수행한다.
+  - 구조 예시:
+    - `LoginScreen.tsx` (View: 버튼, 인풋 등 UI만 존재)
+    - `useLoginLogic.ts` (Logic: API 호출, 유효성 검사, 에러 핸들링)
+
+### 4.2 State Management Hierarchy (상태 관리 위계)
+- **Server State**: `TanStack Query` 사용.
+  - 데이터 페칭, 캐싱, 로딩 상태 관리. 
+  - **Critical Rule**: Fetcher 함수에는 반드시 `/infra/network`의 **`apiClient`**를 주입해야 한다. (D13 Cronet/HTTP3 적용 필수).
+- **Global Client State**: `Zustand` 사용.
+  - 세션 정보, 앱 테마, 전역 모달 상태 등 "앱이 꺼져도 기억하거나, 어디서든 접근해야 하는 정보".
+- **Form State**: `React Hook Form` 사용.
+  - 렌더링 최적화를 위해 비제어 컴포넌트(Uncontrolled Component) 방식 사용. `useState`로 인풋을 관리하는 행위 지양.
+- **Local UI State**: `useState` 사용.
+  - 단순 토글(Toggle), 아코디언 펼치기, 탭 전환 등 "해당 컴포넌트 안에서만 의미 있는 일시적 상태".
+
+---
+
+## 5. Security & Error Handling (보안 및 에러)
+
+### 5.1 Operational Compliance (D12/D13 연결 - 중요)
+- **Hell Gate Interceptor (지옥 체험)**:
+    - **Logic**: API 응답 헤더에 `X-Penalty-Wait` 값이 존재하면(예: 3000ms), 클라이언트 코드 레벨에서 **강제로 `await sleep(ms)`를 수행**한 뒤 데이터를 반환해야 한다.
+    - **Implementation**: `apiClient`의 Response Interceptor 레벨에서 전역 처리한다. 개별 컴포넌트나 페이지에서 `sleep`을 구현하는 것은 금지한다.
+- **Ghost Protocol UI (쉐도우 밴)**:
+    - **Logic**: 본인이 쓴 글이라도 서버 데이터(`Post`)에 `is_hidden: true`가 포함되어 있다면?
+      - **Admin Mode**: 반투명 처리 + "차단됨(나만 보임)" 아이콘 표시.
+      - **User Mode**: 아무런 표시 없이 정상 게시물처럼 렌더링 (완벽한 은폐). 유저는 본인이 차단당했는지 알 수 없어야 한다.
+
+### 5.2 Typed Errors
+- **Standard**: 단순히 `Error` 객체나 문자열을 throw하는 것을 금지한다.
+- **Class**: `AppError`를 상속받아 구체적인 에러 코드를 명시해야 한다.
+  - 예시 코드:
+    ```typescript
+    throw new AppError({
+      code: 'AUTH_TOKEN_EXPIRED',
+      message: '세션이 만료되었습니다.',
+      severity: 'WARNING'
+    });
+    ```
+- **Handler**: `GlobalErrorBoundary` 및 `QueryCache.onError`에서 에러 발생 시 `Sentry` 로깅과 유저용 `Toast` 알림을 동시에 수행한다.
+
+### 5.3 Security Rules
+- **No Console**: 프로덕션 빌드(Release) 시 코드 내에 `console.log`, `console.error`가 남아있으면 커밋 훅(Husky)이나 CI에서 거부한다.
+- **Secure Storage**: 민감 정보(Access Token, Refresh Token, User Email)는 `AsyncStorage`에 저장하는 것을 **절대 금지**하며, 반드시 암호화된 `expo-secure-store`를 사용해야 한다.
+
+---
+
+## 6. Git & Workflow (협업 규칙)
+
+### 6.1 Conventional Commits
+- **Format**: `type(scope): subject`
+  - `feat(scan): add camera overlay` (새로운 기능 추가)
+  - `fix(auth): resolve token retry loop` (버그 수정)
+  - `refactor(feed): optimize list rendering` (기능 변경 없이 코드 구조 개선)
+  - `chore(infra): update supabase client` (빌드 업무 수정, 패키지 매니저 설정 등)
+- **Enforcement**: `commitlint` 설정을 통해 규칙을 어긴 커밋 메시지는 아예 입력되지 않도록 차단(Commit Hook).
+
+### 6.2 Pre-Push Check (깨진 창문 방지)
+- **Integrity**: `git push` 실행 시 자동으로 `tsc` (타입 검사), `eslint` (린트), `test` (유닛 테스트)가 실행된다.
+- **Rule**: 하나라도 실패하면 Push가 거부된다. "에러가 있는 코드는 저장소에 올라갈 자격이 없다."
+
+---
+
+## 7. PC Web Studio Standards (가면 스튜디오)
+
+### 7.1 Architecture Segregation
+- **Rule**: 가면 제작 스튜디오(PC Web)는 모바일 앱(React Native)과 별도의 저장소(Repository) 또는 Monorepo 내 분리된 패키지(`/apps/studio`)로 관리한다.
+- **Tech Stack**:
+  - **Engine**: Three.js / React Three Fiber (Web).
+  - **Editor**: Roblox Studio 스타일의 3D 조작(Gizmo, Orbit Controls) 지원.
+
+### 7.2 Auth Bridge (D02/D13 연결)
+- **Mechanism**: PC 웹에서의 작업물은 **'Code Sync'** 방식을 통해 모바일 계정과 연결된다.
+- **Strictness**: PC 웹 클라이언트는 Supabase Auth(Email/Password)를 직접 사용하지 않고, 모바일 앱에서 발급한 **'One-Time Sync Code'**를 입력하여 세션을 획득한다. (PC 해킹 시 모바일 계정 보호).
+
+---
+
+## [Appendix] SQL Execution Roadmap (총 65개 파일)
+
+**[Critical]**: `sql.txt` 폴더 내의 파일들은 파일명 앞의 **숫자 순서(000 -> 064)**대로 실행하는 것이 **유일한 생존 수칙**이다.
+
+### Phase 1: The Foundation (기반 공사)
+- **Target**: `000_init.sql` ~ `062_last_legacy.sql` (총 63개 파일)
+- **Status**: 기존 레거시.
+- **Check**: 이 단계가 완료되어야 `profiles`, `posts`, `shop_items` 등 기본 테이블이 생성된다.
+
+### Phase 2: Infrastructure Expansion (인프라 확장)
+- **Target**: `063_new_infra_implementation.sql`
+- **Role**: 기존 건물의 증축 (Extension).
+- **Actions**:
+  - **Domain 07**: `profiles` 테이블에 `film_free`, `film_revenue` 지갑 컬럼 추가.
+  - **Domain 11**: `referrals` 테이블(족보) 신규 생성.
+  - **Domain 13**: `verify_ledger_integrity` 감시 함수 설치.
+
+### Phase 3: Operations & Security Patch (최종 보안 및 정책)
+- **Target**: `064_global_ops_patch.sql` (**The Last Step**)
+- **Role**: 건물 전체의 보안 시스템 및 규정 적용 (Policy & Security).
+- **Actions**:
+  - **Fix**: Phase 1에서 생성된 데이터의 초기값(0점)을 **100점**으로 강제 보정.
+  - **Secure**: Phase 2까지 구축된 모든 테이블에 **Hell Gate(75점)**와 **Ghost Protocol(쉐도우 밴)** 트리거 부착.
+  - **Global**: DB 시간대를 UTC로 강제하고, 스토리지 권한을 잠금.
+
+**[Final Check]**: `064`번까지 실행이 끝났다면, 비로소 **Dresaps V4.0**의 인프라가 완성된 것이다.

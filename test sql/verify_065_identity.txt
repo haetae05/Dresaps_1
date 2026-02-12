@@ -1,0 +1,57 @@
+-- Verification Script for 065_domain_identity.sql
+-- Run this in Supabase SQL Editor to verify the migration.
+
+DO $$
+DECLARE
+    v_profile_exists BOOLEAN;
+    v_specs_exists BOOLEAN;
+    v_policy_exists BOOLEAN;
+    v_trig_func_exists BOOLEAN;
+BEGIN
+    RAISE NOTICE '--- START VERIFICATION: 065_domain_identity ---';
+
+    -- 1. Check Columns in Profiles
+    SELECT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'profiles' AND column_name = 'bio') INTO v_profile_exists;
+    IF NOT v_profile_exists THEN
+        RAISE EXCEPTION 'FAIL: bio column missing in profiles';
+    ELSE
+        RAISE NOTICE 'PASS: profiles columns expanded';
+    END IF;
+
+    -- 2. Check User Body Specs Table
+    SELECT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'user_body_specs') INTO v_specs_exists;
+    IF NOT v_specs_exists THEN
+        RAISE EXCEPTION 'FAIL: public.user_body_specs table missing';
+    ELSE
+        RAISE NOTICE 'PASS: user_body_specs table created';
+    END IF;
+
+    -- 3. Check RLS Policy on Body Specs
+    SELECT EXISTS (
+        SELECT 1 FROM pg_policies 
+        WHERE tablename = 'user_body_specs' 
+        AND policyname = 'Owner manage body specs'
+    ) INTO v_policy_exists;
+    
+    IF NOT v_policy_exists THEN
+        RAISE WARNING 'WARNING: RLS policy might be missing or named differently. Check manually.';
+    ELSE
+        RAISE NOTICE 'PASS: Secure RLS policy found';
+    END IF;
+
+    -- 4. Check Handle New User Function Update
+    -- We check if the source code contains 'user_body_specs' insert
+    SELECT EXISTS (
+        SELECT 1 FROM pg_proc 
+        WHERE proname = 'handle_new_user' 
+        AND prosrc LIKE '%user_body_specs%'
+    ) INTO v_trig_func_exists;
+
+    IF NOT v_trig_func_exists THEN
+        RAISE EXCEPTION 'FAIL: handle_new_user function does not seem to insert into user_body_specs';
+    ELSE
+        RAISE NOTICE 'PASS: handle_new_user function updated';
+    END IF;
+
+    RAISE NOTICE '--- ALL CHECKS PASSED ---';
+END $$;

@@ -1,0 +1,112 @@
+# Domain 09: Digital Magazine System (디지털 매거진)
+
+**기반 데이터**:
+- **Consolidated Domains**: D01, D04, D05, D06, D07, D08, D11, D12, D13, D14.
+- **Philosophy (From Domain 01)**: "Tactile & Prestige" (디지털 소유감의 극대화).
+
+---
+
+## 1. Magazine Architecture & Types
+
+### 1.1 Official Issue (The Dresaps Month)
+- **Target**: 전체 유저 공개 (Public).
+- **Source**: Domain 06 Style Cup **Top 20 Hall of Fame**.
+- **Structure**:
+    1.  **Cover (표지)**:
+        - 대상: 각 카테고리별 **1위 (Diamond)** 유저.
+        - **Asset**: Domain 04 **Gemini Pro**로 렌더링 된 초고화질(4K Upscaling) 이미지.
+        - **Visual**: Fashionista가 선정될 경우 **Gold Frame** 및 **Galaxy Effect**가 표지에 적용됨. (From Domain 08).
+        - **Viral Trigger (From Domain 11)**: 표지 선정 시 `Magazine Cover (Type B)` 바이럴 이미지가 자동 생성되어 SNS 공유 유도.
+    2.  **Feature (특집)**: 2~3위 유저 인터뷰 및 화보.
+    3.  **Lookbook (화보)**: 4~20위 유저의 컬렉션.
+        - **Priority (From Domain 08)**: 동점자 또는 유사 순위일 경우 **Fashionista**에게 화보 우선 배치권 부여.
+
+### 1.2 Personal Archive (My Magazine)
+- **Target**: **Dresaps PRO** 멤버십 유저 전용 (Private/Friends).
+- **Ticket Logic (From Domain 07)**:
+    - **Asset**: 매월 멤버십 갱신 시 `magazine_ticket` 1장 지급.
+    - **Policy**: 티켓 유효기간 없음 (이월 가능), 추가 구매 불가 (No Direct IAP).
+- **Content**: 유저가 직접 지난달 베스트 컷 6~20장을 큐레이션 하여 발행.
+- **Benefit**:
+    - 발행된 매거진은 프로필 최상단에 **[Special Post]** 형태로 박제 및 고정(Pin) 가능.
+
+---
+
+## 2. Interaction & UX (From Domain 01/05)
+
+### 2.1 Tactile Viewer
+- **Gesture**: 좌우 스와이프를 통한 실제 잡지 같은 페이지 넘김.
+- **Visual Tech**:
+    - **Page Flip Shader**: 종이가 넘어가는 물리적 굴곡과 그림자 렌더링 (Unity/Flutter Shader).
+    - **Haptic Feedback**: 페이지를 넘길 때마다 미세한 진동(Tick) 제공.
+- **Layout**: 모바일에서는 단면(Single), PC/태블릿에서는 양면(Double-Spread) 뷰 자동 전환.
+
+### 2.2 Connected Experience
+- **Deep Linking**:
+    - 매거진 내 화보 터치 시 -> 해당 **[원본 게시물 상세 페이지]**로 즉시 이동.
+- **Home Integration (From Domain 05)**:
+    - 앱 실행 시 홈 화면 상단(Top Stories)에 최신 매거진 커버가 가로 스크롤로 노출됨.
+
+---
+
+## 3. Global Publishing System (From Domain 14)
+
+### 3.1 Time Standard (UTC)
+- **Snapshot Trigger**: 매월 말일 **UTC 23:59:59**.
+- **Publish Date**: 매월 1일 **UTC 00:00:00**. (전 세계 동시 발행).
+- **Notification**: "1월호가 발행되었습니다! 당신의 순위를 확인하세요." (Local Time 발송).
+
+### 3.2 Asset Optimization (CDN)
+- **Pre-loading**: 매거진 뷰어 진입 전, 표지와 첫 3페이지를 미리 다운로드(Prefetch)하여 **Zero-Latency** 구현.
+- **Edge Caching**: 각국 AWS CloudFront Edge에 고해상도 에셋 배포.
+
+---
+
+## 4. System Logic & Policy
+
+### 4.1 Data Freezing (Deep Copy)
+- **Snapshot Logic**:
+    - 랭킹 확정 순간, 해당 유저의 코디 데이터(Avatar/Outfit/Pose)를 `magazine_snapshots` 테이블로 **복제(Deep Copy)**.
+- **Immutability (불변성)**:
+    - 유저가 원본 게시물을 추후 삭제하거나 수정하더라도, 이미 발행된 매거진 내의 이미지는 **영구 보존**된다. (역사적 기록).
+    - 단, 원본 게시물로의 딥링크는 "삭제된 게시물입니다" Toast 메시지로 대체됨.
+
+### 4.2 Tie-Breaker Rule (From Domain 06)
+- **Situation**: 스타일 컵 랭킹 산정 시 동점자 발생.
+- **Priority**:
+    1.  **Win Count**: 다승(승리 횟수) 우선.
+    2.  **Early Bird**: 게시물 등록 시점이 더 빠른 유저 우선.
+    3.  **Active Score**: 최근 3일간 활동(접속/평가) 지수가 높은 유저.
+
+### 4.3 Delisting Policy (From Domain 12)
+- **Sanction**: 발행 후라도 유저가 '영구 정지(Ban)' 되거나 '심각한 유해성(Nudity)'이 발견될 경우.
+- **Action**:
+    - 매거진 내 해당 페이지를 **[Content Removed]** 기본 이미지로 강제 대체.
+    - 차순위 유저를 승격시키지 않고 **결번(Vacancy)** 처리. (역사 왜곡 방지).
+
+---
+
+## 5. Monetization Integration (수익화 연동)
+
+**매거진의 '몰입감'을 해치지 않으면서 수익을 창출하는 전략 (From Domain 07).**
+
+### 5.1 AI Commerce (In-Magazine Shopping)
+- **Logic**: 매거진 화보 속 의상을 터치하면 **[Domain 07]**의 **'AI Commerce Gateway'**가 동일하게 작동.
+- **UI**: 3x3 그리드 형태의 유사 상품 추천 오버레이가 뜨며, 구매 시 **3~5% 수수료** 수익 발생.
+
+### 5.2 Brand Spread (전면 광고)
+- **Placement**: Official Issue의 3~4페이지마다 **브랜드 전면 광고(Full Page Ad)** 삽입.
+- **Premium**: 일반 배너 광고와 달리, 매거진 톤앤매너에 맞춘 고화질 화보형 광고만 허용 (Agency Fee 모델 적용).
+
+---
+
+## 6. Infrastructure Protocols (Snapshot Tech)
+
+**[Domain 13]**의 Supabase 환경에서 대용량 매거진 데이터를 효율적으로 관리하는 규약.
+
+### 6.1 Separate Storage Bucket
+- **Isolation**: 매거진용 이미지는 `posts` 버킷이 아닌 `magazine_archive` 버킷에 별도 저장된다.
+- **Optimization**: 4K 원본은 보관하되, 모바일 뷰어용으로는 **WebP 80% 압축 버전**을 서빙하여 트래픽 비용을 절감한다.
+
+### 6.2 JSONB Archiving
+- **Meta Data**: 매거진의 페이지 구성(Layout), 텍스트(Interview), 참여 유저 정보는 RDB 테이블이 아닌 **JSONB** 형태로 통째로 저장(`archived_data`)하여, DB 스키마 변경의 영향을 받지 않도록 한다.

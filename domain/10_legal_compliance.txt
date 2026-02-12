@@ -1,0 +1,28 @@
+# Domain 10: Legal & Compliance (법무 및 규정)
+
+**기반 데이터**:
+- Ag-4 (Text): `[Dresaps] 서비스 이용약관 (통합본).txt`
+
+---
+
+## 1. Terms of Service (TOS) Highlights
+- **Article 35 (Refunds)**:
+    - **7-Day Rule**: 구매 후 7일 이내 청약 철회 가능.
+    - **Exception**: 1회라도 사용한 경우 철회 불가. 무료 지급분은 환불 대상 아님.
+- **Article 41 (UGC License)**:
+    - **Ownership**: 유저(User)에게 귀속.
+    - **Usage Right**: 회사(Company)는 홍보, 운영, AI 학습, 2차 저작물 작성에 사용할 수 있는 영구적/비독점적 권한 획득.
+- **Article 20 (Re-join Restriction)**:
+    - 탈퇴 후 **30일**간 재가입 불가 (악성 유저 세탁 방지).
+
+## 2. Privacy & Security
+- **PII Separation**:
+    - 이름, 전화번호, 이메일: 암호화 저장.
+    - **Sensitive Data (Body Specs)**: 별도 테이블(`user_measurements`) 분리 및 엄격한 접근 제어(RLS).
+- **Deletion Policy**:
+    - 계정 삭제 시: 개인정보 즉시 파기(Hard Delete) 원칙이나, CS 대응 및 이의 제기 처리를 위해 **30일(Soft Delete)** 보관 후 자동 파기 스케줄러 작동.
+    - **Ban Logic (Persistence)**: 영구 정지 유저의 경우 사기/어뷰징 재가입 방지를 위해 닉네임/이메일의 **해시 데이터(Hash)**를 1년간 보관한다.
+
+## 3. Youth Policy
+- **Age Limit**: 만 14세 이상 이용 가능 (대한민국 정보통신망법).
+- **Verification**: 본인인증(PASS 등) 모듈 연동 예정.

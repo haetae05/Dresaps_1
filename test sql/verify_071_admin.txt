@@ -1,0 +1,89 @@
+-- Verification Script for 071_system_admin.sql
+-- Run this in Supabase SQL Editor.
+
+DO $$
+DECLARE
+    v_reporter_id UUID;
+    v_target_id UUID;
+    v_report_id UUID;
+    v_initial_rep INT;
+    v_final_rep INT;
+    v_stats RECORD;
+BEGIN
+    RAISE NOTICE '--- START VERIFICATION: 071_system_admin ---';
+
+    -- 1. Setup Mock Users
+    SELECT id INTO v_reporter_id FROM auth.users LIMIT 1;
+    -- Find a target that is NOT the reporter (if possible)
+    SELECT id INTO v_target_id FROM auth.users WHERE id != v_reporter_id LIMIT 1;
+    
+    -- Fallback for single user env (Self-Report for testing logic)
+    IF v_target_id IS NULL THEN v_target_id := v_reporter_id; END IF;
+
+    IF v_reporter_id IS NULL THEN
+        RAISE NOTICE 'No users found. Skipping.';
+        RETURN;
+    END IF;
+
+    -- Reset Reputation
+    UPDATE public.profiles SET reputation_score = 100 WHERE id = v_target_id;
+
+    -- 2. Test Report Creation
+    RAISE NOTICE 'Testing Report Creation...';
+    
+    INSERT INTO public.reports (reporter_id, target_user_id, reason)
+    VALUES (v_reporter_id, v_target_id, 'Spam Verification')
+    ON CONFLICT (reporter_id, target_user_id) DO NOTHING; -- Handle reruns
+    
+    SELECT id INTO v_report_id FROM public.reports 
+    WHERE reporter_id = v_reporter_id AND target_user_id = v_target_id;
+
+    -- Test Unique Constraint
+    BEGIN
+        INSERT INTO public.reports (reporter_id, target_user_id, reason)
+        VALUES (v_reporter_id, v_target_id, 'Duplicate');
+        RAISE EXCEPTION 'Duplicate report check failed!';
+    EXCEPTION WHEN unique_violation THEN
+        RAISE NOTICE 'Duplicate report blocked correctly.';
+    END;
+
+    -- 3. Test Admin Judgment (Resolve)
+    RAISE NOTICE 'Testing Judgment calls...';
+    
+    -- We assume current session is admin (Simulate via call)
+    -- Deduct 30 points
+    PERFORM public.resolve_report(v_report_id, 'RESOLVED', 30);
+    
+    -- Check Status
+    IF NOT EXISTS (SELECT 1 FROM public.reports WHERE id = v_report_id AND status = 'RESOLVED') THEN
+        RAISE EXCEPTION 'Report status not updated!';
+    END IF;
+
+    -- Check Penalty
+    SELECT reputation_score INTO v_final_rep FROM public.profiles WHERE id = v_target_id;
+    IF v_final_rep != 70 THEN
+        RAISE EXCEPTION 'Penalty not applied! Expected 70, Got %', v_final_rep;
+    END IF;
+    RAISE NOTICE 'Penalty applied (-30).';
+
+    -- Check Admin Log
+    IF NOT EXISTS (SELECT 1 FROM public.admin_logs WHERE target_id = v_target_id AND action_type = 'RESOLVE_REPORT') THEN
+        RAISE EXCEPTION 'Admin log not created!';
+    END IF;
+
+
+    -- 4. Test Dashboard View
+    RAISE NOTICE 'Testing Stats View...';
+    SELECT * INTO v_stats FROM public.admin_stats_view;
+    RAISE NOTICE 'Stats: %', v_stats;
+    
+    -- Since we resolved the pending report, count might be 0 (unless others exist)
+    -- We just verify query doesn't crash.
+
+    -- Cleanup
+    DELETE FROM public.reports WHERE id = v_report_id;
+    DELETE FROM public.admin_logs WHERE target_id = v_target_id;
+    UPDATE public.profiles SET reputation_score = 100 WHERE id = v_target_id;
+
+    RAISE NOTICE '--- ALL CHECKS PASSED ---';
+END $$;

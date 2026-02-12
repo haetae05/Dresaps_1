@@ -1,0 +1,118 @@
+# Domain 03: Body Data & AI (신체 데이터 및 AI 생성)
+
+**기반 데이터**:
+- **Consolidated Domains**: D01, D02, D04, D05, D06, D07, D08, D09, D11, D12, D14.
+- **Philosophy (From Domain 01)**: "Hyper-Reality" (초현실주의) & "Privacy First" (데이터 보안).
+
+---
+
+## 1. Onboarding System (온보딩 및 신체 스캔)
+
+### 1.1 Overview
+- **Goal**: 유저의 신체 데이터를 정밀 스캔하여 **Digital Twin (Base Body)**를 생성.
+- **Frequency**: 최초 가입 시 1회 (이후 신체 변화 시 재스캔 가능).
+- **Core Value**: 단순한 아바타가 아닌, **나의 실제 비율과 체형을 완벽히 반영한 3D 모델** 확보.
+
+### 1.2 Client-Side Smart Capture (스마트 촬영 모듈)
+**Tech Stack**: React, TensorFlow.js (Pose Detection), MediaPipe Face Mesh.
+
+#### (1) 전신 유효성 검사 (4-Step Validation)
+브라우저/앱 단에서 다음 4가지 조건이 실시간으로 충족될 때만 자동으로 촬영(Shutter)됩니다.
+1.  **Full Body Visibility (전신 인식)**: PoseNet Keypoints(33개)가 뷰포트 내에 100% 존재해야 함.
+2.  **Pose Matching (포즈 정합성)**: 화면에 표시된 T-Pose(정면/후면) 또는 A-Pose(측면) 가이드라인과 유저의 스켈레톤이 일치해야 함.
+3.  **Stability (안정화)**: 3초간 좌표 변화가 임계값 이내일 때 카운트다운(3-2-1) 후 촬영.
+4.  **Environment Check (환경)**: 복잡한 배경이나 어두운 조명일 경우 경고 메시지 출력 ("더 밝은 곳으로 이동해주세요").
+
+#### (2) Face Detail Scan (얼굴 정밀 촬영)
+전신 촬영 직후, 아바타의 사실성을 극대화하기 위해 얼굴 근접 촬영을 수행합니다.
+- **Method**: 전면 카메라(Selfie Mode) 전환 후, 타원형 가이드에 얼굴 정렬.
+- **Extraction Logic**:
+    - **Eye Color**: MediaPipe Face Mesh로 동공 및 홍채(Iris) 영역을 타격하여 평균 RGB/Hex 값 추출 (조명 반사광 제외).
+    - **Face Texture**: 전신 사진(2m 거리)의 낮은 해상도를 보완하기 위해, 근접 사진(30cm 거리)의 고해상도 스킨 텍스처를 획득.
+
+---
+
+## 2. Server-Side Pipeline (3D 생성 및 텍스처링)
+
+### 2.1 Base Avatar Generation
+**Tech Stack**: Python Backend (Supabase Functions / Cloud Run).
+- **Process**:
+    1.  **Projection**: 촬영된 4면(Front, Back, Left, Right)의 전신 이미지를 3D 표준 모델(Mixamo Bot)에 투영.
+    2.  **Volumetric Adjustment**: 유저의 키(Height), 몸무게, 팔다리 길이 데이터를 기반으로 3D 메쉬의 버텍스(Vertex)를 변형하여 실제 체형 구현.
+    3.  **Skin Blending**: 근접 촬영된 고해상도 얼굴 텍스처를 Head UV 영역에 블렌딩(Blending)하여 자연스러운 연결 처리.
+    4.  **Material Setup**: 추출된 Eye Color를 아바타 눈 재질(Material)에 적용하여 생동감 부여.
+
+### 2.2 Data Privacy & Security (Strict)
+- **Hard Delete**: 3D Base Body 생성 및 텍스처 추출이 완료되는 **즉시**, 업로드되었던 유저의 **실물 원본 사진(Raw Images)은 영구 삭제**된다.
+- **Persistence**: 서버에는 오직 **'생성된 3D 아바타 모델 파일(.glb)'**과 **'추출된 텍스처 맵'**만 저장된다. (유저 식별 불가능한 비식별 데이터화).
+
+---
+
+## 3. Fit Integrity & Recommendation (체형 데이터 활용)
+
+### 3.1 Fit Integrity (착장 무결성)
+- **Logic**: 유저가 옷을 입혀보는(Recoding) 시점에, **현재 카메라에 비친 실제 체형**과 **저장된 Base Body의 체형**을 비교 분석.
+- **Restriction**: 체형 데이터가 오차 범위(예: 키 ±5cm, 체중 ±10%)를 벗어날 경우, 옷의 핏이 망가지는 것을 막기 위해 **"체형이 변경되었습니다. 재스캔이 필요합니다."**라는 메시지와 함께 리코딩을 제한.
+
+### 3.2 Body Type Clustering (추천 알고리즘)
+- **Analysis**: 저장된 체형 정보(Height, Weight, Curvature)를 분석하여 유저를 특정 **'체형 군집(Body Type Cluster)'**으로 분류.
+- **Application**: Feed(Domain 05)에서 나와 비슷한 체형을 가진 유저의 스타일링을 우선적으로 노출하는 **'개인화 추천 시스템'**의 핵심 피처(Feature)로 활용.
+
+---
+
+## 4. Technical Requirements (System Specs)
+
+### 4.1 Required Libraries (Python)
+`functions/requirements.txt`:
+- `rembg`: 배경 제거 (Background Removal).
+- `trimesh`: 3D 메쉬 처리 및 변형.
+- `opencv-python-headless`: 이미지 전처리 및 윤곽선 추출.
+- `numpy`: 행렬 연산 및 좌표 계산.
+- `Pillow`: 텍스처 이미지 조작.
+
+### 4.2 Asset Standards
+- **Rigging**: Mixamo 표준 리그(Standard Rig) 호환성 유지 (추후 애니메이션 적용 대비).
+- **Format**: Web/Mobile 최적화를 위한 `.glb` (Binary glTF) 포맷 사용.
+- **LOD (Level of Detail)**: 모바일 성능을 고려하여 폴리곤 수를 최적화한 LOD 적용.
+
+---
+
+## 5. Infrastructure Protocols (For Local & Hybrid)
+
+**[Domain 13]**의 'Local Python Server + Supabase' 하이브리드 아키텍처를 지탱하기 위한 필수 통신 규약.
+
+### 5.1 The "Incinerator" Protocol (데이터 소각)
+신체 데이터 보안과 클라우드 스토리지 비용(Cost) 절감을 위한 데이터 수명 주기 관리.
+
+1.  **Ephemeral Bucket (임시 소각장)**
+    * 유저가 업로드한 Raw Image는 처리를 위해 `temp-body-scans` 버킷에 저장된다.
+    * Local Server가 이미지를 다운로드하여 3D 생성을 완료하는 즉시, 해당 원본 이미지는 버킷에서 **물리적으로 영구 삭제(Hard Delete)**된다.
+2.  **Zero-Trace (흔적 없음)**
+    * 처리 중 에러가 발생하더라도, `finally` 구문을 통해 임시 이미지는 무조건 삭제되도록 보장한다.
+
+### 5.2 The "Confidence" Gate (AI 품질 검증)
+잘못된 데이터가 DB를 오염시키는 것을 막기 위한 AI의 '거부 권한(Rejection Right)'.
+
+1.  **Threshold Logic (임계값)**
+    * Local Server의 Pose Estimation 모델이 산출한 신뢰도(Confidence Score)가 **0.85 미만**일 경우, 생성을 거부하고 클라이언트에 `ERROR: LOW_QUALITY_SCAN`을 반환한다.
+    * 주요 거부 사유: 조명 부족, 신체 일부 잘림, 다인 인식.
+2.  **Consistency Check (일관성)**
+    * 정면 사진의 키(Height)와 측면 사진의 키 오차가 **3% 이상** 발생하면, 자세 불량으로 판단하여 재촬영을 요구한다.
+
+### 5.3 The "Biological Limit" Check (생물학적 검증)
+시스템의 리얼리티를 해치는 비현실적인 데이터 차단.
+
+1.  **Human Bounds (인간 범위)**
+    * 측정된 데이터가 해부학적 임계치(예: 허리둘레 > 키)를 벗어나면 `INVALID_DATA`로 처리한다.
+2.  **Delta Limit (변화량 제한)**
+    * 기존 데이터 대비 7일 이내에 물리적으로 불가능한 변화(예: 키 +10cm)가 감지되면, 어뷰징으로 간주하여 생성을 보류(Pending)한다.
+
+### 5.4 Async Queue Architecture (비동기 대기열)
+Local Server(GPU)의 과부하를 막고, 다수 유저의 요청을 순차 처리하기 위한 'Pull-Based' 시스템.
+
+1.  **Status Polling (상태 관리)**
+    * 유저가 사진을 올리면 DB의 `scan_requests` 테이블에 `status: 'QUEUED'`로 기록된다.
+    * Local Server는 1초 간격으로 대기열을 확인(Polling)하여, 한 번에 **1~2개의 작업만 가져와(Fetch)** 처리한다.
+2.  **UX Notification (알림)**
+    * 처리가 완료되면 상태가 `status: 'COMPLETED'`로 바뀌고, Supabase Realtime을 통해 유저 앱 화면에 **"3D 아바타 생성 완료!"** 알림이 즉시 전송된다.
+    * 이 구조 덕분에 사장님의 컴퓨터(서버)가 다운되어도, 유저의 요청은 유실되지 않고 대기열에 안전하게 남는다.

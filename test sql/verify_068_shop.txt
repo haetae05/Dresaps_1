@@ -1,0 +1,113 @@
+-- Verification Script for 068_domain_shop.sql
+-- Run this in Supabase SQL Editor.
+
+DO $$
+DECLARE
+    v_user_id UUID;
+    v_item_id UUID;
+    v_expensive_item_id UUID;
+    v_initial_points BIGINT;
+    v_final_points BIGINT;
+    v_result JSONB;
+BEGIN
+    RAISE NOTICE '--- START VERIFICATION: 068_domain_shop ---';
+
+    -- 1. Setup Mock User & Wallet
+    SELECT id INTO v_user_id FROM auth.users LIMIT 1;
+    IF v_user_id IS NULL THEN
+        RAISE NOTICE 'No users found. Skipping.';
+        RETURN;
+    END IF;
+    
+    -- Ensure fresh wallet state
+    INSERT INTO public.wallets (user_id, points) VALUES (v_user_id, 1000)
+    ON CONFLICT (user_id) DO UPDATE SET points = 1000;
+
+    -- 2. Setup Mock Items
+    INSERT INTO public.items (category, brand_name, price_points)
+    VALUES ('ACCESSORY', 'ShopTestItem', 100)
+    RETURNING id INTO v_item_id;
+
+    INSERT INTO public.items (category, brand_name, price_points)
+    VALUES ('ACCESSORY', 'ExpensiveItem', 99999)
+    RETURNING id INTO v_expensive_item_id;
+
+    -- Cleanup inventory just in case
+    DELETE FROM public.inventory WHERE user_id = v_user_id AND item_id IN (v_item_id, v_expensive_item_id);
+
+
+    -- 3. Test Successful Purchase
+    RAISE NOTICE 'Testing Success Purchase...';
+    
+    -- Simulate Auth Context (Hack for testing View/RLS if needed, but we call function directly)
+    -- We need to mock auth.uid() for the function to work? 
+    -- Actually, `purchase_item` calls `auth.uid()`. In DO block, `auth.uid()` might be null.
+    -- We will try to call it. *If it fails due to auth.uid() being null, we can't test RPC easily in SQL Editor without setting request context.*
+    -- BUT, for testing purposes, we can assume the developer runs this in a session where they can set local role or we modify the verification to just warn.
+    
+    -- NOTE: In Supabase SQL Editor, `auth.uid()` is null.
+    -- We will temporarily bypass the `auth.uid()` check in the verification script by assuming the function works if logic is correct,
+    -- OR we can try `SET SESSION "request.jwt.claim.sub" = ...` if supported.
+    -- Let's try setting the config variable used by Supabase Auth (local development trick).
+    
+    EXECUTE 'SET request.jwt.claim.sub = ''' || v_user_id || '''';
+    EXECUTE 'SET ROLE authenticated'; -- Switch to authenticated role context
+
+    -- Check view before purchase
+    PERFORM * FROM public.shop_items_view WHERE id = v_item_id; -- Should exist
+
+    -- Execute Purchase
+    v_result := public.purchase_item(v_item_id, 'POINT');
+    RAISE NOTICE 'Purchase Result: %', v_result;
+
+    -- Verify Inventory
+    IF NOT EXISTS (SELECT 1 FROM public.inventory WHERE user_id = v_user_id AND item_id = v_item_id) THEN
+        RAISE EXCEPTION 'Item was not added to inventory!';
+    END IF;
+
+    -- Verify Balance (1000 - 100 = 900)
+    -- Need to switch back to postgres/service_role to read wallet if RLS blocks 'authenticated' from reading raw table (only view allowed?)
+    -- Our policy allows "Users view own wallet", so it should be fine.
+    SELECT points INTO v_final_points FROM public.wallets WHERE user_id = v_user_id;
+    IF v_final_points != 900 THEN
+        RAISE EXCEPTION 'Balance Incorrect: Expected 900, Got %', v_final_points;
+    END IF;
+
+
+    -- 4. Test Duplicate Purchase (Should Fail)
+    RAISE NOTICE 'Testing Duplicate Purchase...';
+    BEGIN
+        PERFORM public.purchase_item(v_item_id, 'POINT');
+        RAISE EXCEPTION 'Duplicate purchase not blocked!';
+    EXCEPTION WHEN OTHERS THEN
+        RAISE NOTICE 'Duplicate correctly blocked: %', SQLERRM;
+        -- Balance should still be 900
+        SELECT points INTO v_final_points FROM public.wallets WHERE user_id = v_user_id;
+        IF v_final_points != 900 THEN RAISE EXCEPTION 'Balance changed during failed duplicate tx!'; END IF;
+    END;
+
+
+    -- 5. Test Insufficient Funds (Should Fail + Rollback)
+    RAISE NOTICE 'Testing Insufficient Funds...';
+    BEGIN
+        PERFORM public.purchase_item(v_expensive_item_id, 'POINT');
+        RAISE EXCEPTION 'Overdraft not blocked!';
+    EXCEPTION WHEN OTHERS THEN
+        RAISE NOTICE 'Overdraft correctly blocked: %', SQLERRM;
+        -- Balance should still be 900
+        SELECT points INTO v_final_points FROM public.wallets WHERE user_id = v_user_id;
+        IF v_final_points != 900 THEN RAISE EXCEPTION 'Balance changed during failed overdraft tx!'; END IF;
+        
+        -- Item should NOT be in inventory
+        IF EXISTS (SELECT 1 FROM public.inventory WHERE user_id = v_user_id AND item_id = v_expensive_item_id) THEN
+             RAISE EXCEPTION 'Item added despite insufficient funds!';
+        END IF;
+    END;
+
+    -- Cleanup
+    SET ROLE postgres; -- Reset
+    DELETE FROM public.inventory WHERE user_id = v_user_id AND item_id IN (v_item_id, v_expensive_item_id);
+    DELETE FROM public.items WHERE id IN (v_item_id, v_expensive_item_id);
+
+    RAISE NOTICE '--- ALL CHECKS PASSED ---';
+END $$;

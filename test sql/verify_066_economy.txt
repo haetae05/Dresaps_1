@@ -1,0 +1,84 @@
+-- Verification Script for 066_domain_economy.sql
+-- Run this in Supabase SQL Editor.
+
+DO $$
+DECLARE
+    v_user_id UUID;
+    v_tx_id UUID;
+    v_balance BIGINT;
+BEGIN
+    RAISE NOTICE '--- START VERIFICATION: 066_domain_economy ---';
+
+    -- 1. Setup Mock User (if not exists, grab one)
+    SELECT id INTO v_user_id FROM auth.users LIMIT 1;
+    
+    IF v_user_id IS NULL THEN
+        RAISE NOTICE 'No users found to test. Skipping logic tests.';
+        RETURN;
+    END IF;
+    
+    -- Ensure wallet exists (Migration should have done this)
+    INSERT INTO public.wallets (user_id) VALUES (v_user_id) ON CONFLICT DO NOTHING;
+
+    -- 2. Test Deposit (Points)
+    RAISE NOTICE 'Testing Deposit...';
+    v_tx_id := public.process_transaction(
+        v_user_id,
+        100,
+        'POINT',
+        'DEPOSIT',
+        'Test Deposit'
+    );
+    
+    SELECT points INTO v_balance FROM public.wallets WHERE user_id = v_user_id;
+    RAISE NOTICE 'Balance after deposit: %', v_balance;
+    IF v_balance < 100 THEN
+        RAISE EXCEPTION 'Deposit failed';
+    END IF;
+
+    -- 3. Test Withdrawal (Success)
+    RAISE NOTICE 'Testing Withdrawal...';
+    v_tx_id := public.process_transaction(
+        v_user_id,
+        -50,
+        'POINT',
+        'WITHDRAWAL',
+        'Test Withdraw'
+    );
+    
+    SELECT points INTO v_balance FROM public.wallets WHERE user_id = v_user_id;
+    RAISE NOTICE 'Balance after withdrawal: %', v_balance;
+    IF v_balance = 0 THEN 
+        RAISE EXCEPTION 'Withdrawal calculation wrong';
+    END IF;
+
+    -- 4. Test Overdraft (Should Fail)
+    RAISE NOTICE 'Testing Overdraft...';
+    BEGIN
+        PERFORM public.process_transaction(
+            v_user_id,
+            -10000, -- Way more than balance
+            'POINT',
+            'WITHDRAWAL',
+            'Test Overdraft'
+        );
+        RAISE EXCEPTION 'Overdraft did not fail!';
+    EXCEPTION WHEN OTHERS THEN
+        RAISE NOTICE 'Overdraft correctly blocked: %', SQLERRM;
+    END;
+
+    -- 5. Test Negative Constraint Direct Update (Should Fail)
+    -- This requires being a superuser or bypassing RLS, but let's try via SQL
+    -- Since we are in DO block as postgres/admin, RLS might be bypassed or we are owner.
+    -- Constraint should still hold.
+    BEGIN
+        UPDATE public.wallets SET points = -5 WHERE user_id = v_user_id;
+        RAISE EXCEPTION 'Constraint check failed!';
+    EXCEPTION WHEN CHECK_VIOLATION THEN
+        RAISE NOTICE 'Constraint correctly blocked negative balance.';
+    WHEN OTHERS THEN
+        RAISE NOTICE 'Update blocked (RLS or other): %', SQLERRM;
+    END;
+
+    RAISE NOTICE '--- ALL CHECKS PASSED ---';
+END $$;

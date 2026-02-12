@@ -1,0 +1,67 @@
+# Domain 05: Feed & Community (피드 및 소통)
+
+**기반 데이터**:
+- **Consolidated Domains**: D01, D02, D04, D06, D07, D08, D09, D11, D12, D14.
+- **Philosophy (From Domain 01)**: "Tactile & Optimistic" (반응성) & "Fairness" (공정한 노출).
+
+---
+
+## 1. Feed Infrastructure (The Stage)
+
+### 1.1 Optimistic UI (From Domain 01/14)
+- **Logic**: 좋아요, 댓글, 평가(Voting) 등 유저 인터랙션은 **선(先)반영 후(後)통신** 원칙.
+- **Feedback**: 터치 시 로딩 없이 즉시 햅틱(Tactile) 반응 및 UI 업데이트(Red Heart). 실패 시 조용히 롤백.
+- **Global Safety**: 네트워크 환경이 열악한 해외 유저(Latency)를 고려한 필수 UX.
+
+### 1.2 Layout Strategy (From Domain 14)
+- **Layout**: 모바일(1단) vs 웹(3단 - Nav/Feed/Info).
+- **Text Safety**: 모든 텍스트 컨테이너에 `flex-wrap` 및 `RTL(Right-to-Left)` 대응 로직 적용.
+
+---
+
+## 2. Feed Item Structure (The Content)
+
+### 2.1 Header: Identity Visuals (From Domain 02/08/11)
+- **Fashionista**: **Galaxy Effect** (회전하는 은하수 테두리) 및 볼드 닉네임.
+- **PRO**: **Solid Gold Border** (2px) 및 골드 닉네임.
+- **Streak**: 닉네임 옆 **'🔥 Count'** 배지 (연속 업로드 과시).
+
+### 2.2 Body: Content (From Domain 04)
+- **Thumbnail**: 유저가 지정한 '대표 사진(Index 1)' 선노출.
+- **Volume**: 기본 3장 / 패셔니스타 5장 (Detail/Zoom Cut 포함).
+
+### 2.3 Footer: Interaction (From Domain 05)
+- **Star Slider**: 0.5~5.0점 드래그 평가 (Haptic Feedback).
+- **Share**: **Universal Share Sheet** 호출 -> D11 ViewShot(움직이는 이미지) 생성 및 공유.
+
+---
+
+## 3. 100-Person Verification System (Fairness)
+
+### 3.1 FIFO Queue (From Domain 04/06)
+- **New Queue**: 평가 횟수 **100회 미만**인 게시물은 피드 최상단에 우선 노출됨.
+- **Logic**: 신규 게시물이 최소한의 평가 표본(Sample)을 확보할 때까지 노출을 보장하여 '빈익빈 부익부' 방지.
+
+### 3.2 Evaluation Gate (Login Check - From Domain 02)
+- **Daily Login**: 앱 실행 후 **"1회 이상 평가(Voting)"**를 완료해야만 출석으로 인정됨.
+- **Purpose**: 눈팅(Lurking) 방지 및 평가 데이터 확보.
+
+---
+
+## 4. Safety & Ads (From Domain 07/12)
+
+### 4.1 Rating Shield (Abuse Prevention)
+- **Cooldown**: 평가 후 3초 내 재평가 시도 무시 (광클 방지).
+- **Hater Logic**: 평점 테러범(평균 1.5 미만)의 가중치를 0.1로 하향.
+- **Report**: 유해 게시물 신고 시 **24시간 숙려(Cooling-off)** 후 AI 판결 (단, 중대 위반은 즉시 블라인드).
+
+### 4.2 Ad Injection (Revenue)
+- **Ratio**: **7:1** (게시물 7개당 광고 1개).
+- **Policy**: 구독자(PRO) 포함 **전원 노출** (BM v4.0).
+- **Rewarded**: 필름 소진 시 보상형 광고(Video) 시청으로 충전 유도 (일 최대 1회 제한).
+
+---
+
+## 5. Magazine Connection (From Domain 09)
+- **Archive**: 내 피드의 베스트 컷은 'Personal Archive'에 자동 큐레이션.
+- **Deeplink**: 매거진(Official Issue)에서 화보 클릭 시 원본 피드 게시물로 이동.

@@ -1,0 +1,159 @@
+# Domain 01: Core Philosophy (정체성 및 철학)
+
+**기반 데이터**:
+
+- **Consolidated Domains**: D02, D03, D04, D05, D06, D07, D08, D09, D11, D12,
+  D14.
+- **Mission**: "Hyper-Reality, Privacy, Fairness" (진실, 프라이버시, 공정).
+
+---
+
+## 1. Identity Definition
+
+- **Service Name**: Dresaps (드레셉스)
+  - **Etymology**: Dress + Snap + Post
+  - **Slug**: `dresaps-app` (Expo Config)
+- **Slogans**:
+  - Main: "No Models, Just Us." (모델은 필요 없어, 우리면 충분해.)
+  - Sub: "패션? 나도 몰라. 그냥 너희랑 놀고 싶어서 만들었어."
+
+---
+
+## 2. Operator Persona: The Dual-Track Soul
+
+**"이성과 감성 (Logic & Romance)"** 완벽한 AI 기술 기업의 가면(공식) 뒤에, 꿈을
+향해 달리는 평범한 **청년 개발자(페르소나)**가 공존한다.
+
+### A. Track A: The Suit (Official)
+
+- **Identity**: 글로벌 AI 테크 기업 'Dresaps Inc.'
+- **Tone**: 냉철함, 완벽주의, 신뢰, "User is King".
+- **Role**: 시스템의 안정성, 법적 문제(D12), 데이터 무결성 책임(D13).
+- **Crisis Action (From D11)**: 서비스 장애나 치명적 오류 발생 시 즉시 'The
+  Suit' 모드로 전환하여 신뢰 회복.
+
+### B. Track B: The Hoodie (Persona - GM Libe)
+
+- **Identity**: 밤새 코딩하고 컵라면 먹는 **'학생 개발자 GM Libe'**.
+- **Tone**: 솔직함, 열정, 약간의 허술함(인간미), "User is Friend".
+- **Philosophy**: "오타쿠적 열정은 내 일부일 뿐, 본질은 세상을 바꾸고 싶은
+  **'젊은 패기'**다."
+- **Culturalization (From D14)**:
+  - **KR**: 시험기간 대학생 (공감, 갓생).
+  - **US/Global**: Garage Indie Founder (Underdog).
+  - **JP**: Doujin Creator (Craftsmanship).
+
+---
+
+## 3. Core Philosophy: The Tri-Force
+
+### A. Hyper-Reality (Technology - From D04)
+
+- **Core Value**: 보정 없는 '진짜 핏' (Real-Fit).
+- **Implementation**: AI Hallucination(환각)을 철저히 배제하고, 리코딩(Recoding)
+  기술을 통해 **'실측 데이터'**에 기반한 정직한 창작만을 추구한다.
+- **Action**: 거짓된 모델 핏이 아닌, 나와 같은 체형의 사람들이만들어내는
+  현실적인 룩북을 제공한다.
+
+### B. Privacy (Zero-Face - From D03/D14)
+
+- **Core Value**: **"얼굴 없는 패션"**.
+- **Implementation**: 얼굴이라는 계급장을 떼고, 오직 '신체 비율(Body Data)'과
+  '스타일링(Sense)'만 남기는 익명성 보장 아바타.
+- **Volatile Data Principle**: 유저의 원본 신체 사진(Raw Data)은 3D 생성 즉시
+  **영구 삭제(Hard Delete)**되며, 서버에 1초도 남기지 않는다(D03/D13).
+
+### C. Fairness (Mechanism - From D06/D12)
+
+- **Core Value**: 계급장 떼고 옷으로만 승부. 팔로워 수가 아닌 '옷'이 주인공.
+- **Blind System**: 스타일 컵(Style Cup)에서 브랜드, 가격, 팔로워 수 등 편견
+  요소를 제거한다.
+- **AI Justice**: 운영자의 주관이 아닌, AI(Computer Vision)에 의한 공정하고 감정
+  없는 심판(Sanction)을 집행한다.
+
+---
+
+## 4. Social & Economic Philosophy
+
+### A. Anti-Lookism (외모지상주의 해체)
+
+- **Social Pain**: 기존 SNS는 '옷'보다 '얼굴'과 '배경'을 소비하게 만들었다.
+- **Solution**: 유저의 외모(Face)를 배제하고 감각(Sense)과 신체(Body) 그 자체를
+  존중한다.
+
+### B. Sustainable Prosumerism (From D07/D08)
+
+- **Definition**: "소비자가 곧 생산자다."
+- **Cycle**: 유저는 옷을 소비하는 것을 넘어, 포즈(Pose)와 가면(Mask)을 창작하고
+  판매하여 수익(Film/Cash)을 창출하는 주체(Prosumer)가 된다.
+- **Value**: 자본(Money)이 없어도 감각(Sense)만 있다면 'Top 20'에 오르고(D06)
+  경제적 자유를 얻을 수 있는 기회의 평등 제공.
+
+---
+
+## 5. Design & UX Philosophy (From D05/D09)
+
+### A. Tactile & Optimistic
+
+- **Optimistic UI**: "기다림은 죄악이다." 유저의 행동(좋아요, 팔로우)은 즉시
+  UI에 반영되며, 통신은 백그라운드에서 처리한다. (D05/D13).
+- **Tactile Feedback**: 단순한 터치를 넘어, 햅틱(Haptic)과 페이지 넘김(Page
+  Flip) 효과를 통해 디지털 환경에서 **물리적 감각(Texture)**을 구현한다. (D09).
+
+### B. Digital Equity (From D14)
+
+- **Philosophy**: "지구 반대편에서도 서울과 같다."
+- **Action**: Edge Computing과 CDN을 통해 전 세계 어디서든 동일한 속도와
+  반응성을 보장하여, 물리적 거리가 사용자 경험의 차별이 되지 않도록 한다.
+
+---
+
+## 6. The Code of Conduct (System Axioms)
+
+Dresaps의 모든 기능과 데이터 구조는 아래 4가지 절대 원칙(Axioms)을 위배할 수
+없다.
+
+### 6.1 Digital Darwinism (적자생존)
+
+- **Principle:** "Static is Dead (정적인 것은 죽은 것이다)."
+- **Action:**
+  - 상점(Market)은 박물관이 아니라 정글이다. 유저들의 선택을 받지 못한(Usage
+    Count = 0) 포즈나 아이템은 시스템에 의해 자동 퇴출(Delist)된다.
+  - 우리는 데이터를 '보존'하지 않고 '순환'시킨다.
+- **Infra-Constraint:** `items` 테이블은 주기적으로 `last_used_at`을 검사하여
+  비활성화하는 트리거(Trigger)를 포함한다.
+
+### 6.2 Utility over Vanity (과시보다 실용)
+
+- **Principle:** "Connection for Usage, Not for Status (지위를 위한 연결이 아닌,
+  사용을 위한 연결)."
+- **Action:**
+  - 우리는 타인에게 영향력을 과시하는 '팔로워(Follower)' 개념을 시스템 레벨에서
+    거부한다.
+  - 오직 내가 필요해서 저장하는 '핀(PIN/Bookmark)'만이 존재하며, 이 숫자는
+    타인에게 절대 노출되지 않는다.
+- **Infra-Constraint:** `users` 테이블에는 `follower_count` 컬럼이 존재하지
+  않으며, `user_pins` 테이블은 RLS(Row Level Security)로 철저히 격리된다.
+
+### 6.3 Glass Box & Data Sovereignty (데이터 주권)
+
+- **Principle:** "What You See Is All We Have (당신이 보는 것이 우리가 가진
+  전부다)."
+- **Action:**
+  - 유저의 신체 데이터(Body Measurements)는 서비스 이용을 위한 '필수 재료'일 뿐,
+    우리의 '자산'이 아니다.
+  - 유저가 '삭제'를 요청하면, 서버에서도 즉시 물리적으로 소멸(Hard Delete)한다.
+    눈속임(Soft Delete)은 법적 필수 데이터 외에는 불허한다.
+- **Infra-Constraint:** `user_measurements` 테이블은 `ON DELETE CASCADE` 옵션을
+  통해 유저 계정 삭제 시 즉시 증발하도록 설계한다.
+
+### 6.4 Anti-Fantasy (반-판타지)
+
+- **Principle:** "Acceptance before Style (스타일 이전에 수용하라)."
+- **Action:**
+  - 우리는 제페토(Zepeto)식의 '예쁜 가짜'를 만들지 않는다. 현실의 비율과 체형을
+    100% 반영한 '디지털 트윈'만을 허용한다.
+  - 리코딩(Recoding)은 조명과 배경을 연출할 뿐, 유저의 신체 자체를
+    왜곡(Distortion)하지 않는다.
+- **Infra-Constraint:** 스캔된 신체 데이터와 아바타 메쉬(Mesh) 간의 오차 범위를
+  체크하여, 과도한 보정이 감지되면 리코딩 생성을 거부(Reject)한다.

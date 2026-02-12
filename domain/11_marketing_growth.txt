@@ -1,0 +1,133 @@
+# Domain 11: Marketing & Growth (바이럴 및 성장)
+
+**기반 데이터**:
+- **Consolidated Domains**: D01, D02, D05, D06, D07, D09, D12, D13, D14.
+- **Philosophy (From Domain 01)**: "Dual-Track Soul" (이성과 감성의 전략적 공존).
+
+---
+
+## 1. SNS Dual-Track Strategy (페르소나 전략)
+
+**"Official is Static, Founder is Kinetic."**
+
+### 1.1 Track A: The Suit (Official Account)
+- **Identity**: **"Unified Branding"** (통일된 아이덴티티).
+- **ID Strategy**: 모든 플랫폼(YouTube, Insta, X, TikTok)에서 `@dresaps_official`로 고정.
+- **Role**: 브랜드 신뢰도 구축, 시스템 공지, 랭킹(Style Cup) 발표.
+- **Tone**: "User is King." (냉철, 완벽, 신뢰, 비즈니스).
+- **Crisis Management (From Domain 12)**:
+    - 서비스 장애, 데이터 유실 등 치명적 사고 발생 시.
+    - 즉시 장난스러운 페르소나(Hoodie)를 중단하고, 책임감 있는 'The Suit' 모드로 전환하여 공식 사과 및 보상안 발표.
+
+### 1.2 Track B: The Hoodie (Persona/GM Account)
+- **Identity**: **"Chaotic & Native"** (플랫폼별 제각각인 자아).
+- **ID Strategy**: **통일하지 않는다.** 사장님(GM)이 해당 플랫폼에서 하고 싶은 컨셉에 맞춰 이름을 자유롭게 설정한다. (본캐와 부캐의 경계 없음).
+    - *YouTube*: 예) `새벽코딩러_Libe` (개발 브이로그, 밤샘 코딩).
+    - *X (Twitter)*: 예) `Just_Dev_Thing` (짧은 단상, 밈, 독설).
+    - *Instagram*: 예) `Busan_Gukbap` (일상, 맛집, 가끔 일 얘기).
+- **Role**: 유저 라포(Rapport) 형성. "이 사람도 우리랑 똑같은 사람이네"라는 동질감 부여.
+- **Content**:
+    - "오늘 버그 못 잡아서 퇴근 못함" 징징거리는 글.
+    - 서버실 컵라면 먹방, 버그 수정 실패담 공유 (실패를 감추지 않음).
+    - 운영자 권한을 남용하지 않고 유저와 댓글로 투닥거리는 모습.
+- **Discovery Effect**: 유저들이 각기 다른 플랫폼에서 활동하던 계정이 사실은 Dresaps 사장님임을 나중에 알게 되는 **반전 재미(Easter Egg)** 유도.
+
+---
+
+## 2. Viral Loop & Asset Generation (콘텐츠 확산)
+
+### 2.1 Universal Share Sheet (From Domain 05)
+- **Tech**: `React Native Share` (OS Native Share UI 호출).
+- **Deep Link Strategy**:
+    - **Engine**: Supabase Dynamic Links 또는 Branch.io (Firebase Dynamic Links 종료 대응).
+    - **Pattern**: `https://dresaps.link/post/{id}`.
+    - **Routing**:
+        - 앱 설치 유저: 해당 게시물로 바로 이동 (Deep Linking).
+        - 미설치 유저: 앱스토어 이동 또는 Web Preview(Next.js) 노출.
+
+### 2.2 Viral Asset Types (ViewShot)
+서버 비용 절감을 위해 클라이언트(`ViewShot`)에서 렌더링 후 이미지/영상을 생성.
+
+- **Type A: Daily Look (General)**
+    - **Trigger**: D04 'Make' 완료 또는 피드 공유 시.
+    - **Visual**: 내 아바타 + 로고 + "Today's Vibe" 텍스트 오버레이.
+    - **Target**: Instagram Story, KakaoTalk.
+
+- **Type B: Magazine Cover (PRO Only - From Domain 09)**
+    - **Trigger**: 매거진 티켓 사용 또는 'Official Cover' 선정 시.
+    - **Visual**: 실제 패션 잡지 레이아웃 (Barcode, Headlines, Price Tag).
+    - **Psychology**: "나 잡지 표지 모델 됨" (강력한 과시 욕구 자극).
+
+- **Type C: Style Motion (Short-form Video)**
+    - **Trigger**: '공유하기' -> 'Video' 탭 선택 시.
+    - **Content**: Before(기본 포즈) -> After(생성된 포즈) 변환 애니메이션 (3~5초 숏폼).
+    - **Target**: TikTok, YouTube Shorts, Reels.
+    - **Tech**: 클라이언트 레벨(FFmpeg/Screen Record)에서 즉석 렌더링.
+
+---
+
+## 3. Referral System (친구 초대 - From Domain 02/07)
+
+### 3.1 Dynamic Reward Policy
+- **Config**: `Firebase Remote Config` (`referral_reward_cnt`).
+- **Mechanism**:
+    - **Default**: 초대자 5 Film / 가입자 5 Film 지급.
+    - **Hot Time**: 서버 설정 변경 시, 앱 업데이트 없이 즉시 **10~20 Film**으로 보상 상향 적용.
+- **Destination (Economy Protocol)**:
+    - 지급되는 모든 보상 필름은 **[Domain 07]**의 **'Free Balance (무료 잔고)'**로 적립된다. (환전 불가, 어뷰징 현금화 원천 차단).
+- **UI Exposure**:
+    - 홈 화면 배너 및 마이페이지 최상단에 "지금 친구 부르면 10장!" 문구 노출.
+
+### 3.2 Invite Flow (From Domain 02)
+1.  기존 유저: '초대장 보내기' (카카오톡/링크 복사) -> `referral_code` (UUID) 포함.
+2.  신규 유저: 링크 클릭 -> 앱 설치 -> 가입 시 코드 자동 기입(Deep Link 파싱) 또는 수동 입력.
+3.  **Reward Trigger**: 신규 유저가 **'첫 평가(First Evaluation)'** 완료 시 양쪽 모두에게 필름 즉시 지급. (가입만 하고 나가는 '체리피커' 방지).
+
+---
+
+## 4. Gamification Logic (몰입 및 리텐션)
+
+### 4.1 OOTD Streak (From Domain 05)
+- **Definition**: 하루도 빠짐없이 게시물을 업로드한 연속 일수.
+- **UI**: 닉네임 옆 **'🔥 Streak Count'** 배지 노출.
+- **Loss Aversion**:
+    - 24시간 내 미업로드 시 **0**으로 초기화.
+    - 초기화 임박 시(남은 시간 1시간) 푸시 알림: "연속 기록이 깨지기 직전이에요!".
+
+### 4.2 Easter Eggs (Hidden Fun - From Domain 06/12)
+유저가 스스로 발견하고 바이럴하게 만드는 숨겨진 기능.
+- **Developer Mode**: 설정 화면 내 로고 10회 연타 -> "개발자 모드 아님" 팝업 + **1 Film**.
+- **Tag Maniac**: 태그(Tag) 10개 이상 입력 시 -> "덕력 인정" 팝업 + **1 Film**.
+- **Gukbap Legend**: 언어 설정 한국어 + 구석의 'D' 로고 터치 -> 국밥 사진 노출 + "든든함 인정" + **1 Film**.
+- **Safety**: 이스터 에그는 단순 재미 요소이며, 시스템 권한이나 보안에는 영향을 주지 않음.
+
+---
+
+## 5. SEO & ASO (검색 최적화 - From Domain 14)
+
+### 5.1 Web Preview (SEO)
+- **Tech**: Next.js (SSR) 기반의 **Open Graph** 페이지 생성.
+- **Meta Tags**:
+    - `og:image`: 유저가 생성한 룩(Look) 이미지.
+    - `og:video`: Style Motion (Type C) 영상 링크 (지원 시).
+    - `og:title`: "{Nickname}님의 OOTD를 확인하세요."
+    - `og:description`: "Dresaps에서 나만의 스타일을 찾아보세요."
+
+### 5.2 Global Keywords (ASO)
+- **KR**: `옷입히기`, `AI프로필`, `퍼스널컬러`, `패션게임`, `코디추천`.
+- **Global**: `Virtual Closet`, `OOTD Maker`, `Style Notebook`, `Fashion AI`.
+
+---
+
+## 6. Infrastructure Protocols (Growth Tech)
+
+**[Domain 13]**의 데이터 구조 안에서 마케팅 효율을 추적하기 위한 기술적 규약.
+
+### 6.1 Referral Tracking (족보 관리)
+- **Table**: `referrals`
+    - `inviter_id` (초대자) -> `invitee_id` (가입자) -> `created_at`.
+- **Purpose**: "누가 누구를 데려왔는지" 트리 구조를 분석하여, **'슈퍼 커넥터(Super Connector)'** 유저를 식별하고 추후 패셔니스타 선정 등에 가산점을 부여한다.
+
+### 6.2 Attribution Analytics (기여도 분석)
+- **Install Source**: 유저가 유입된 경로(Instagram, YouTube, Invite Link)를 `users` 테이블의 `signup_source` 컬럼에 기록.
+- **ROI Calculation**: 각 채널별 유입 유저의 LTV(생애 가치)를 추적하여 마케팅 예산 집행의 효율성을 최적화한다.

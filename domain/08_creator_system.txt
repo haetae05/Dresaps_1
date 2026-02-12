@@ -1,0 +1,117 @@
+# Domain 08: Creator System (패셔니스타 - Fashionista)
+
+**기반 데이터**:
+- **Consolidated Domains**: D01, D02, D04, D05, D06, D07, D09, D12, D13, D14.
+- **Philosophy (From Domain 01)**: "Everyone is a Creator" (소비자가 곧 생산자).
+
+---
+
+## 1. Fashionista Criteria (자격 요건)
+
+**"Strict & Premium"** - 누구나 도전할 수 있지만, 아무나 될 수는 없다.
+
+### 1.1 Quantitative (정량적 기준)
+- **Cumulative Posts**: 누적 게시물 **20개** 이상.
+- **Total Evaluations**: 누적 평가 수 **6,000회** 이상 (20개 게시물 × 300회 평균).
+- **Reputation Score (From Domain 12)**: 평판 점수 **90점** 이상 유지 필수.
+  *(90점 미만 하락 시 자격 박탈 및 신청 버튼 비활성화).*
+
+### 1.2 Qualitative (정성적 기준)
+- **Rating Average**: 평균 평점 **4.8 / 5.0** 이상.
+- **Internal Review**: 콘텐츠 도용 여부 및 퀄리티 수동 검토 (GM 승인 필요).
+
+### 1.3 Application Logic
+- **Trigger**: 조건 충족 시 마이페이지 내 '신청하기' 버튼 자동 활성화.
+- **Process**: 신청 -> 관리자 검토(48h) -> 승인(`is_fashionista = true`) -> 축하 알림.
+
+---
+
+## 2. Exclusive Privileges (혜택 - Tech & Visual)
+
+### 2.1 Production Tech (생산성 - From Domain 04)
+- **5-Slot Batch**: 일반 유저(3개)보다 많은 **5개 슬롯** 동시 생성 지원. (B컷 확보 및 물량 공세 유리).
+- **Advanced Result**:
+  - **Detail Cut**: 의상 질감(Texture) 강조 컷 자동 생성.
+  - **Zoom Cut**: 얼굴/메이크업 강조 컷 자동 생성.
+- **Gemini Pro Engine**: 고해상도 리코딩 엔진 기본 적용 (Members Only).
+
+### 2.2 Visual Identity (차별화 - From Domain 02/05)
+- **Galaxy Effect**: 프로필 아바타 주변에 회전하는 **은하수 이펙트(Galaxy Border)** 적용.
+- **Gold Frame**: 피드 내 썸네일에 **2px 금색 테두리** 적용하여 주목도 상승.
+- **Bold Nickname**: 피드 및 댓글 영역에서 닉네임이 **Bold** 처리됨.
+- **Profile Theme**: 마이페이지 테마를 `GOLD` 또는 `DARK` 모드로 커스텀 가능.
+
+### 2.3 Exposure Benefit (노출 - From Domain 05/09)
+- **Search Top**: 검색창 진입 시 '추천 유저' 영역에 최상단 고정 노출.
+- **Magazine Priority**: Domain 09 공식 매거진의 'Lookbook' 섹션 큐레이션 시 우선권 부여.
+
+---
+
+## 3. Creator Economy (수익화 - From Domain 07)
+
+### 3.1 Marketplace Revenue (Direct)
+- **Item Sales**: 본인이 창작한 포즈(Pose) 또는 가면(Mask) 판매.
+- **Split Ratio**: **Creator 80%** / Platform 20%.
+- **Destination**: 수익금은 Domain 07의 **'Revenue Balance'** (정산 가능 잔고)에 적립된다.
+
+### 3.2 Ad Revenue Share (Indirect)
+- **Mechanism**: 본인 게시물의 상세 화면(Detail View) 하단에 노출되는 배너 광고 수익의 일부를 환원.
+- **Logic**: 유효 조회수(Valid View) 및 체류 시간(Duration) 기반으로 **RPM(Revenue Per Mille)**을 산정하여 매일 자정 정산.
+
+### 3.3 Sponsorship (Brand Deal - From Domain 07)
+- **Official DM**: 브랜드 광고 제휴(의상 협찬 등) 제안을 받을 수 있는 '비즈니스 DM' 채널 오픈.
+- **Agency Process**:
+    - 모든 계약은 플랫폼이 중개(Escrow)한다. (직거래 적발 시 자격 박탈).
+    - **Agency Fee**: 플랫폼이 계약 관리 및 정산을 대행하며, 총 계약금의 **10~20%**를 수수료로 공제 후 지급한다.
+- **Verified Badge**: 브랜드가 신뢰할 수 있도록 프로필에 인증 배지 노출.
+
+---
+
+## 4. Responsibility & Restriction (책임 - From Domain 12)
+
+### 4.1 Maintaining Criteria
+- **Monitoring**: 매월 1일 자격 요건 재심사.
+- **Downgrade**:
+  - 평점 4.5 미만으로 3개월 지속 시.
+  - 평판 점수 90점 미만 하락 시 (즉시 박탈).
+  - 3개월 이상 미활동(Inactive) 시.
+
+### 4.2 Ethical Standard
+- **Plagiarism**: 타인 디자인 도용 적발 시 자격 영구 박탈 및 계정 정지.
+- **Abuse**: 평점 품앗이(Collusion) 적발 시 수익 몰수 및 자격 박탈.
+
+---
+
+## 5. Attention (주의사항)
+
+Dresaps의 창작자 생태계는 '인기 투표'가 아닌 '콘텐츠의 질'로 승부한다. 따라서 크리에이터 대시보드(Studio)는 다음과 같은 '비공개 원칙'을 따른다.
+
+1.  **No Subscriber Metrics (구독자 수 미제공)**
+    - 타 유저가 나를 'PIN(북마크)' 했더라도, 그 총합(Total Count)은 크리에이터 본인에게 제공되지 않는다.
+    - 이는 "구독자를 모으기 위한" 자극적인 콘텐츠 생산을 방지하고, 오직 개별 게시물의 성과(조회수, 스타일컵 승률)에만 집중하게 하기 위함이다.
+
+2.  **Focus on Content (지표의 방향성)**
+    - 모든 통계는 '사람(Who)'이 아닌 '게시물(What)' 중심으로 제공된다.
+    - 제공되는 지표: 조회수(Views), 완독률(Retention), 스타일컵 승리 횟수(Wins), 판매 전환율(Conversion).
+
+---
+
+## 6. Infrastructure Protocols (Settlement & Priority)
+
+**[Domain 13]** 및 **[Domain 07]**과 연동되어 실제 자금 이체와 서버 자원 할당을 제어하는 규약.
+
+### 6.1 Settlement Pipeline (정산 파이프라인)
+현금 인출(Cash-out) 요청 시의 안전장치 및 데이터 흐름.
+1.  **KYC Check (신원 인증)**:
+    - 첫 정산 요청 전, 반드시 **실명 인증** 및 **세금 정보(Tax Info)** 등록을 완료해야 한다. (미등록 시 인출 불가).
+2.  **Request & Lock**:
+    - 유저가 인출 요청(Request)을 하면, 해당 금액만큼 `Revenue Balance`가 즉시 **잠금(Lock)** 처리된다.
+3.  **Admin Approval**:
+    - 관리자가 `payout_requests` 테이블을 검토 후 승인하면, 외부 결제 모듈(Stripe Payouts)을 통해 송금되고 DB 상태가 `PAID`로 변경된다.
+
+### 6.2 Priority Queueing (우선순위 할당)
+패셔니스타의 '5-Slot Batch' 및 'Gemini Pro' 요청이 몰릴 경우를 대비한 서버 로직.
+1.  **Fast Track**:
+    - 패셔니스타의 생성 요청은 `job_queue` 테이블에서 `priority: HIGH` 값을 가지며, 일반 유저보다 먼저 GPU 자원을 할당받는다.
+2.  **Resource Reservation**:
+    - Local Server의 GPU 메모리 중 30%는 항상 패셔니스타 요청 처리를 위해 예비(Reserve)된다.
