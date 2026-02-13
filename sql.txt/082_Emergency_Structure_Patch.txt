@@ -1,0 +1,179 @@
+-- [DRESAPS V4.1] PATCH 082: RESURRECTION
+-- Description: Restoring Logic, Storage, and Safety missing in 078 MVP.
+
+-- ====================================================
+-- 1. TYPE EXTENSION (새로운 타입 정의)
+-- ====================================================
+DO $$ BEGIN
+    -- 멤버십 등급 (Free, Basic, Pro)
+    CREATE TYPE public.membership_tier AS ENUM ('FREE', 'BASIC', 'PRO');
+    -- 게시물 상태 (임시저장, 게시됨, 보관됨)
+    CREATE TYPE public.post_status AS ENUM ('DRAFT', 'PUBLISHED', 'ARCHIVED');
+    -- 신고 사유
+    CREATE TYPE public.report_reason AS ENUM ('SPAM', 'NUDITY', 'HARASSMENT', 'HATE_SPEECH', 'OTHER');
+    -- 스타일 컵 매치 상태
+    CREATE TYPE public.match_status AS ENUM ('ACTIVE', 'VOTING', 'FINISHED', 'CANCELLED');
+EXCEPTION
+    WHEN duplicate_object THEN NULL;
+END $$;
+
+-- ====================================================
+-- 2. TABLE EXPANSION (기존 테이블 확장 - 안전한 컬럼 추가)
+-- ====================================================
+
+-- 2.1 Profiles: 멤버십, 퍼스널 컬러, 스타일 태그 추가
+ALTER TABLE public.profiles 
+ADD COLUMN IF NOT EXISTS membership_tier public.membership_tier DEFAULT 'FREE',
+ADD COLUMN IF NOT EXISTS personal_color TEXT,  -- 예: "Summer Cool Light"
+ADD COLUMN IF NOT EXISTS style_tags TEXT[];    -- 예: ["Street", "Minimal"]
+
+-- 2.2 Wallets: 티켓 저장소 추가 (포즈, 가면, 매거진)
+ALTER TABLE public.wallets 
+ADD COLUMN IF NOT EXISTS ticket_pose INT DEFAULT 0 CHECK (ticket_pose >= 0),
+ADD COLUMN IF NOT EXISTS ticket_mask INT DEFAULT 0 CHECK (ticket_mask >= 0),
+ADD COLUMN IF NOT EXISTS ticket_magazine INT DEFAULT 0 CHECK (ticket_magazine >= 0);
+
+-- 2.3 Items: 3D 에셋 및 썸네일 경로 추가
+ALTER TABLE public.items 
+ADD COLUMN IF NOT EXISTS asset_url TEXT,       -- 실제 3D 모델 (.glb) 경로
+ADD COLUMN IF NOT EXISTS thumbnail_url TEXT;   -- 상점 표시용 이미지
+
+-- 2.4 Posts: 제목 및 상태(Draft) 추가
+ALTER TABLE public.posts 
+ADD COLUMN IF NOT EXISTS title TEXT,           -- 게시물 제목
+ADD COLUMN IF NOT EXISTS status public.post_status DEFAULT 'PUBLISHED',
+ADD COLUMN IF NOT EXISTS style_tags TEXT[];    -- 게시물용 태그
+
+-- ====================================================
+-- 3. NEW FOUNDATIONS (누락된 테이블 신설)
+-- ====================================================
+
+-- 3.1 [Style Cup] 스타일 컵 대결 및 투표
+CREATE TABLE IF NOT EXISTS public.style_cup_matches (
+    id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+    round_id INT, -- 몇 회차 컵인지
+    red_user_id UUID REFERENCES public.profiles(id) ON DELETE SET NULL,
+    blue_user_id UUID REFERENCES public.profiles(id) ON DELETE SET NULL,
+    winner_id UUID REFERENCES public.profiles(id) ON DELETE SET NULL,
+    status public.match_status DEFAULT 'ACTIVE',
+    start_at TIMESTAMPTZ DEFAULT NOW(),
+    end_at TIMESTAMPTZ,
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS public.style_cup_votes (
+    id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+    match_id UUID REFERENCES public.style_cup_matches(id) ON DELETE CASCADE,
+    voter_id UUID REFERENCES public.profiles(id) ON DELETE CASCADE,
+    voted_for UUID REFERENCES public.profiles(id) ON DELETE CASCADE, -- red or blue
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    UNIQUE(match_id, voter_id) -- 한 매치당 한 번만 투표 가능
+);
+
+-- 3.2 [Reports] 신고 시스템
+CREATE TABLE IF NOT EXISTS public.reports (
+    id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+    reporter_id UUID REFERENCES public.profiles(id) ON DELETE SET NULL,
+    target_type TEXT NOT NULL, -- 'POST', 'COMMENT', 'USER'
+    target_id UUID NOT NULL,
+    reason public.report_reason NOT NULL,
+    description TEXT,
+    status TEXT DEFAULT 'PENDING', -- PENDING, RESOLVED, DISMISSED
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- 3.3 [Avatar Settings] 온보딩/현재 아바타 상태 저장 (Persistence)
+-- Stateless Wardrobe라도 '기본 세팅'은 기억해야 함.
+CREATE TABLE IF NOT EXISTS public.user_avatar_settings (
+    user_id UUID REFERENCES public.profiles(id) ON DELETE CASCADE PRIMARY KEY,
+    base_body_data JSONB DEFAULT '{}'::JSONB, -- 키, 몸무게, 체형 변형 데이터
+    current_outfit_data JSONB DEFAULT '{}'::JSONB, -- 현재 입고 있는 기본 옷(Inventory ID 아님, 단순 Asset ID)
+    updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- 3.4 [Saved Looks] 옷장 (Draft Posts)
+-- Posts 테이블의 status='DRAFT'를 활용할 수도 있지만, 
+-- 명확한 'Wardrobe' 뷰를 위해 View를 생성하거나 별도 관리.
+-- 여기서는 효율성을 위해 posts 테이블의 status='DRAFT'를 '옷장에 저장된 룩'으로 정의함.
+-- 별도 테이블 생성 없음. (Optimized)
+
+-- ====================================================
+-- 4. LOGIC & BRAIN RESTORATION (트리거 및 함수 복구)
+-- ====================================================
+
+-- 4.1 [Hell Gate Logic] 평판 75점 미만 시 게시물 자동 숨김 처리
+CREATE OR REPLACE FUNCTION public.enforce_hell_gate()
+RETURNS TRIGGER LANGUAGE plpgsql SECURITY DEFINER AS $$
+BEGIN
+    -- 유저의 평판 점수 확인
+    IF (SELECT reputation_score FROM public.profiles WHERE id = NEW.user_id) < 75 THEN
+        NEW.is_hidden := TRUE; -- 강제로 숨김 처리 (Shadow Ban)
+    END IF;
+    RETURN NEW;
+END;
+$$;
+
+DROP TRIGGER IF EXISTS trg_enforce_hell_gate ON public.posts;
+CREATE TRIGGER trg_enforce_hell_gate
+BEFORE INSERT ON public.posts
+FOR EACH ROW EXECUTE FUNCTION public.enforce_hell_gate();
+
+-- 4.2 [Avatar Sync] 유저 생성 시 Avatar Settings 초기화
+CREATE OR REPLACE FUNCTION public.init_avatar_settings()
+RETURNS TRIGGER LANGUAGE plpgsql SECURITY DEFINER AS $$
+BEGIN
+    INSERT INTO public.user_avatar_settings (user_id) VALUES (NEW.id)
+    ON CONFLICT DO NOTHING;
+    RETURN NEW;
+END;
+$$;
+
+DROP TRIGGER IF EXISTS trg_init_avatar ON public.profiles;
+CREATE TRIGGER trg_init_avatar
+AFTER INSERT ON public.profiles
+FOR EACH ROW EXECUTE FUNCTION public.init_avatar_settings();
+
+-- 4.3 [Transaction Guard] 지갑 잔액 부족 시 거래 차단
+CREATE OR REPLACE FUNCTION public.check_balance_before_tx()
+RETURNS TRIGGER LANGUAGE plpgsql SECURITY DEFINER AS $$
+DECLARE
+    current_bal BIGINT;
+BEGIN
+    IF NEW.amount < 0 THEN -- 출금/사용 시
+        IF NEW.currency_type = 'FILM_FREE' THEN
+            SELECT film_free INTO current_bal FROM public.wallets WHERE user_id = NEW.user_id;
+        ELSIF NEW.currency_type = 'POINT' THEN
+            SELECT points INTO current_bal FROM public.wallets WHERE user_id = NEW.user_id;
+        END IF;
+        
+        IF current_bal + NEW.amount < 0 THEN
+            RAISE EXCEPTION 'Insufficient funds in wallet';
+        END IF;
+    END IF;
+    RETURN NEW;
+END;
+$$;
+
+DROP TRIGGER IF EXISTS trg_check_balance ON public.transactions;
+CREATE TRIGGER trg_check_balance
+BEFORE INSERT ON public.transactions
+FOR EACH ROW EXECUTE FUNCTION public.check_balance_before_tx();
+
+-- ====================================================
+-- 5. SECURITY UPDATE (RLS 정책 보강)
+-- ====================================================
+
+-- 5.1 RLS 활성화
+ALTER TABLE public.style_cup_matches ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.style_cup_votes ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.reports ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.user_avatar_settings ENABLE ROW LEVEL SECURITY;
+
+-- 5.2 정책 설정
+-- Style Cup: 누구나 조회 가능
+CREATE POLICY "Public view matches" ON public.style_cup_matches FOR SELECT USING (true);
+-- Reports: 본인 신고 내역만 조회 (관리자는 별도)
+CREATE POLICY "View own reports" ON public.reports FOR SELECT USING (auth.uid() = reporter_id);
+CREATE POLICY "Create reports" ON public.reports FOR INSERT WITH CHECK (auth.uid() = reporter_id);
+-- Avatar Settings: 본인만 수정/조회
+CREATE POLICY "Manage own avatar" ON public.user_avatar_settings FOR ALL USING (auth.uid() = user_id);
