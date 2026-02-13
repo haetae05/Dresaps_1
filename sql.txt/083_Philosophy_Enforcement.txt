@@ -1,0 +1,122 @@
+-- [DRESAPS V4.0] PHILOSOPHY ENFORCEMENT PATCH
+-- Version: 1.0 (Critical Fix)
+-- Description: Enforcing 'Anti-Lookism' & 'Digital Darwinism'
+-- Based on: Domain 01 (Source 77, 81, 84) & Domain 04 (Source 126-128)
+
+BEGIN; -- [트랜잭션 시작: 실패 시 전면 롤백]
+
+-- ====================================================
+-- 1. ANTI-LOOKISM (철학: 계급장 떼기)
+-- ====================================================
+-- [Violation Fix]: Domain 01, Source 81
+-- "users 테이블에는 follower_count 컬럼이 존재하지 않으며..."
+-- "우리는 타인에게 영향력을 과시하는 '팔로워' 개념을 시스템 레벨에서 거부한다."
+
+ALTER TABLE public.profiles 
+DROP COLUMN IF EXISTS follower_count,
+DROP COLUMN IF EXISTS following_count;
+
+-- [Safety Note]
+-- 기존 'reputation_score'만 남겨두어, 인기가 아닌 '신뢰도' 중심의 생태계를 강제합니다.
+
+
+-- ====================================================
+-- 2. DIGITAL DARWINISM (철학: 적자생존)
+-- ====================================================
+-- [Violation Fix]: Domain 01, Source 77 / Domain 04, Source 128
+-- "사용 횟수(Usage)가 0이 되면 상점에서 즉시 퇴출(Delist)된다."
+
+-- 2.1 Items 테이블 확장
+ALTER TABLE public.items 
+ADD COLUMN IF NOT EXISTS usage_count INT DEFAULT 0,          -- 현재 활성 게시물에서 사용된 횟수
+ADD COLUMN IF NOT EXISTS last_used_at TIMESTAMPTZ DEFAULT NOW(),
+ADD COLUMN IF NOT EXISTS is_delisted BOOLEAN DEFAULT FALSE,  -- 자동 퇴출 플래그
+ADD COLUMN IF NOT EXISTS creator_id UUID REFERENCES public.profiles(id); -- [Domain 04 Source 136] 포즈 창작자 추적용
+
+-- 2.2 Posts 테이블 확장 (사용된 아이템 추적)
+ALTER TABLE public.posts
+ADD COLUMN IF NOT EXISTS used_item_ids UUID[] DEFAULT '{}'; -- 게시물에 사용된 아이템 ID 목록
+
+-- 2.3 Darwinism Trigger (핵심 로직)
+CREATE OR REPLACE FUNCTION public.enforce_digital_darwinism()
+RETURNS TRIGGER LANGUAGE plpgsql SECURITY DEFINER AS $$
+DECLARE
+    target_item_id UUID;
+BEGIN
+    -- [Case 1: 게시물 생성 (Usage +1)]
+    IF (TG_OP = 'INSERT') THEN
+        IF NEW.used_item_ids IS NOT NULL THEN
+            FOREACH target_item_id IN ARRAY NEW.used_item_ids
+            LOOP
+                UPDATE public.items
+                SET usage_count = usage_count + 1,
+                    last_used_at = NOW()
+                WHERE id = target_item_id;
+            END LOOP;
+        END IF;
+
+    -- [Case 2: 게시물 삭제 (Usage -1 & Survival Check)]
+    ELSIF (TG_OP = 'DELETE') THEN
+        IF OLD.used_item_ids IS NOT NULL THEN
+            FOREACH target_item_id IN ARRAY OLD.used_item_ids
+            LOOP
+                -- 1. 카운트 감소
+                UPDATE public.items
+                SET usage_count = GREATEST(0, usage_count - 1)
+                WHERE id = target_item_id;
+
+                -- 2. 적자생존 판정 (Count가 1 -> 0으로 떨어지는 순간 사망)
+                -- 단, 상점 등록 후 24시간이 지난 아이템에 한함 (신규 아이템 보호)
+                UPDATE public.items
+                SET is_delisted = TRUE,
+                    is_active = FALSE
+                WHERE id = target_item_id
+                  AND usage_count = 0
+                  AND created_at < (NOW() - INTERVAL '24 HOURS');
+            END LOOP;
+        END IF;
+    END IF;
+    RETURN NULL;
+END;
+$$;
+
+-- 트리거 부착
+DROP TRIGGER IF EXISTS trg_darwinism_posts ON public.posts;
+CREATE TRIGGER trg_darwinism_posts
+AFTER INSERT OR DELETE ON public.posts
+FOR EACH ROW EXECUTE FUNCTION public.enforce_digital_darwinism();
+
+
+-- ====================================================
+-- 3. VOLATILE DATA (철학: 데이터 휘발성)
+-- ====================================================
+-- [Violation Fix]: Domain 01, Source 84
+-- "눈속임(Soft Delete)은 법적 필수 데이터 외에는 불허한다."
+
+ALTER TABLE public.posts
+DROP COLUMN IF EXISTS deleted_at;
+
+-- [Note]
+-- 이제 Posts 테이블에서 DELETE를 실행하면 Row가 물리적으로 즉시 삭제되며,
+-- 위의 'trg_darwinism_posts' 트리거가 발동하여 아이템 생존 여부를 심판합니다.
+
+
+-- ====================================================
+-- 4. ECONOMY INTEGRITY (기능: 정산 구조)
+-- ====================================================
+-- [Violation Fix]: Domain 04, Source 140 (Revenue Split)
+
+ALTER TABLE public.generation_jobs
+ADD COLUMN IF NOT EXISTS cost_film_used INT DEFAULT 0; -- 사용된 필름 양 기록 (환불 로직용)
+
+ALTER TABLE public.items
+ADD COLUMN IF NOT EXISTS revenue_share_percent INT DEFAULT 0 CHECK (revenue_share_percent BETWEEN 0 AND 100); -- 창작자 분배율
+
+
+COMMIT; -- [트랜잭션 종료: 여기까지 오류가 없어야 저장됨]
+
+-- [Final Verification Message]
+DO $$
+BEGIN
+    RAISE NOTICE 'Dresaps Philosophy Patch Applied Successfully: Follower Count Removed, Darwinism Engine Activated.';
+END $$;
