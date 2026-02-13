@@ -1,0 +1,51 @@
+-- [DRESAPS V4.3] LOGIC & AUTOMATION
+-- Description: Rating Triggers, Daily Activity Logs
+
+-- ====================================================
+-- 4. LOGIC & AUTOMATION
+-- ====================================================
+
+-- [4.1] 별점 평균 자동 계산 트리거
+-- 설명: post_ratings에 Insert/Update 될 때마다 posts 테이블의 평균 점수를 갱신
+CREATE OR REPLACE FUNCTION public.update_post_average_rating()
+RETURNS TRIGGER AS $$
+BEGIN
+    UPDATE public.posts 
+    SET metadata = jsonb_set(
+        COALESCE(metadata, '{}'), 
+        '{average_rating}', 
+        to_jsonb((SELECT AVG(score) FROM public.post_ratings WHERE post_id = NEW.post_id))
+    )
+    WHERE id = NEW.post_id;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS trg_update_rating ON public.post_ratings;
+CREATE TRIGGER trg_update_rating
+AFTER INSERT OR UPDATE ON public.post_ratings
+FOR EACH ROW EXECUTE FUNCTION public.update_post_average_rating();
+
+-- [4.2] 출석체크 및 보상 (Daily Log)
+-- 설명: 하루 한 번 활동 여부를 체크하여 필름 지급
+CREATE TABLE IF NOT EXISTS public.daily_activity_logs (
+    user_id UUID REFERENCES public.profiles(id) ON DELETE CASCADE,
+    activity_date DATE DEFAULT CURRENT_DATE,
+    has_rated BOOLEAN DEFAULT FALSE, -- 평가 했는지
+    reward_claimed BOOLEAN DEFAULT FALSE, -- 보상 받았는지
+    PRIMARY KEY (user_id, activity_date)
+);
+
+-- Security regarding Daily Logs
+ALTER TABLE public.daily_activity_logs ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Users can view their own logs" ON public.daily_activity_logs
+    FOR SELECT USING (auth.uid() = user_id);
+    
+-- Note: Usually logs are inserted by system triggers or backend logic, 
+-- but if client needs to write:
+CREATE POLICY "Users can insert their own logs" ON public.daily_activity_logs
+    FOR INSERT WITH CHECK (auth.uid() = user_id);
+
+CREATE POLICY "Users can update their own logs" ON public.daily_activity_logs
+    FOR UPDATE USING (auth.uid() = user_id);

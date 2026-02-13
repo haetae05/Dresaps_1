@@ -1,0 +1,26 @@
+-- [DRESAPS V4.2] USER IDENTITY EXPANSION
+-- Description: Onboarding Data (Gender, Birth, Color, Style, Measurements)
+
+-- ====================================================
+-- 3. USER IDENTITY EXPANSION
+-- ====================================================
+
+-- [3.1] 프로필 확장 (Onboarding Data)
+ALTER TABLE public.profiles 
+ADD COLUMN IF NOT EXISTS gender TEXT CHECK (gender IN ('M', 'F', 'OTHER')),
+ADD COLUMN IF NOT EXISTS birth_date DATE,
+ADD COLUMN IF NOT EXISTS personal_color TEXT, -- 'Spring Warm', 'Winter Cool' etc.
+ADD COLUMN IF NOT EXISTS style_tags TEXT[]; -- ['Minimal', 'Street'] (Array)
+
+-- [3.2] 신체 스펙 메타데이터 (Security Enhanced)
+ALTER TABLE public.user_body_specs
+ADD COLUMN IF NOT EXISTS skin_tone_code TEXT, -- Hex code or Classification
+ADD COLUMN IF NOT EXISTS encrypted_measurements TEXT; -- Detailed dimensions JSON encrypted string
+
+-- ====================================================
+-- 4. SECURITY (Permission)
+-- ====================================================
+
+-- Grant update on new columns
+GRANT UPDATE (gender, birth_date, personal_color, style_tags) ON public.profiles TO authenticated;
+GRANT UPDATE (skin_tone_code, encrypted_measurements) ON public.user_body_specs TO authenticated;
