@@ -1,0 +1,229 @@
+-- [DRESAPS V4.0] FINAL MASTER SCHEMA
+-- Version: MVP Stateless Wardrobe
+-- Description: Consolidated Schema/Logic/Security/Seed
+
+-- ====================================================
+-- 1. CLEANUP (완전 초기화)
+-- ====================================================
+DROP SCHEMA IF EXISTS public CASCADE;
+CREATE SCHEMA public;
+GRANT ALL ON SCHEMA public TO postgres;
+GRANT ALL ON SCHEMA public TO public;
+
+-- ====================================================
+-- 2. BASICS (확장 및 타입)
+-- ====================================================
+CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+CREATE EXTENSION IF NOT EXISTS "pg_net";
+CREATE EXTENSION IF NOT EXISTS "pg_trgm";
+CREATE EXTENSION IF NOT EXISTS "pg_cron";
+
+CREATE TYPE public.user_role AS ENUM ('user', 'admin', 'gm');
+CREATE TYPE public.job_status AS ENUM ('pending', 'processing', 'completed', 'failed');
+CREATE TYPE public.job_type AS ENUM ('image_generation', 'model_training');
+CREATE TYPE public.item_category AS ENUM ('TOP', 'BOTTOM', 'SHOES', 'ACCESSORY', 'MASK', 'POSE', 'HAIR', 'FACE');
+
+-- ====================================================
+-- 3. TABLES (구조 정의)
+-- ====================================================
+
+-- [Profiles] UI 필드 복구됨
+CREATE TABLE public.profiles (
+    id UUID REFERENCES auth.users(id) ON DELETE CASCADE PRIMARY KEY,
+    username TEXT UNIQUE NOT NULL,
+    display_name TEXT,
+    bio TEXT,                                       -- [Restored]
+    avatar_url TEXT,                                -- [Restored]
+    onboarding_completed BOOLEAN DEFAULT FALSE,     -- [Restored]
+    role public.user_role DEFAULT 'user',
+    reputation_score INT DEFAULT 100,
+    follower_count INT DEFAULT 0,
+    following_count INT DEFAULT 0,
+    is_hell_gate_target BOOLEAN GENERATED ALWAYS AS (reputation_score < 75) STORED,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- [Wallets] 2가지 재화 지원
+CREATE TABLE public.wallets (
+    user_id UUID REFERENCES public.profiles(id) ON DELETE CASCADE PRIMARY KEY,
+    film_free BIGINT DEFAULT 0 CHECK (film_free >= 0),
+    film_revenue BIGINT DEFAULT 0 CHECK (film_revenue >= 0),
+    points BIGINT DEFAULT 0 CHECK (points >= 0),
+    updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- [Body Specs] 보안 저장소
+CREATE TABLE public.user_body_specs (
+    user_id UUID REFERENCES public.profiles(id) ON DELETE CASCADE PRIMARY KEY,
+    height_encrypted TEXT,
+    weight_encrypted TEXT,
+    scan_data_path TEXT,
+    updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- [Items] 2가지 가격 지원
+CREATE TABLE public.items (
+    id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+    category public.item_category NOT NULL,
+    brand_name TEXT NOT NULL,
+    price_film INT DEFAULT 0,
+    price_points INT DEFAULT 0,                     -- [Added: Logic Fix]
+    is_active BOOLEAN DEFAULT TRUE,
+    qty_limit INT,
+    qty_sold INT DEFAULT 0,
+    metadata JSONB DEFAULT '{}'::JSONB,
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- [Inventory] 단순 보관함 (is_equipped 컬럼 영구 삭제됨)
+CREATE TABLE public.inventory (
+    id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+    user_id UUID REFERENCES public.profiles(id) ON DELETE CASCADE NOT NULL,
+    item_id UUID REFERENCES public.items(id) ON DELETE CASCADE NOT NULL,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    CONSTRAINT unique_inventory_item UNIQUE (user_id, item_id)
+);
+
+-- [Posts] 피드 기능
+CREATE TABLE public.posts (
+    id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+    user_id UUID REFERENCES public.profiles(id) ON DELETE CASCADE NOT NULL,
+    storage_path TEXT NOT NULL,
+    caption TEXT,                                   -- [Restored]
+    likes_count INT DEFAULT 0,
+    comments_count INT DEFAULT 0,
+    is_hidden BOOLEAN DEFAULT FALSE,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    deleted_at TIMESTAMPTZ
+);
+
+-- [Likes]
+CREATE TABLE public.likes (
+    user_id UUID REFERENCES public.profiles(id) ON DELETE CASCADE NOT NULL,
+    post_id UUID REFERENCES public.posts(id) ON DELETE CASCADE NOT NULL,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    PRIMARY KEY (user_id, post_id)
+);
+
+-- [Generation Jobs] 결과 저장 필드 추가
+CREATE TABLE public.generation_jobs (
+    id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+    user_id UUID REFERENCES public.profiles(id) ON DELETE CASCADE NOT NULL,
+    job_type public.job_type NOT NULL,
+    status public.job_status DEFAULT 'pending',
+    input_params JSONB NOT NULL DEFAULT '{}'::JSONB, -- 사용자가 선택한 아이템 ID 목록
+    result_data JSONB,                              -- [Added] 생성된 이미지 URL 저장
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- [Transactions]
+CREATE TABLE public.transactions (
+    id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+    user_id UUID REFERENCES public.wallets(user_id) ON DELETE CASCADE NOT NULL,
+    amount BIGINT NOT NULL,
+    currency_type TEXT NOT NULL,
+    type TEXT NOT NULL,
+    description TEXT,
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- ====================================================
+-- 4. SECURITY (RLS 정책)
+-- ====================================================
+ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.wallets ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.user_body_specs ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.items ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.inventory ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.posts ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.likes ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.generation_jobs ENABLE ROW LEVEL SECURITY;
+
+-- Profiles
+CREATE POLICY "Public profiles" ON public.profiles FOR SELECT USING (true);
+CREATE POLICY "User update own" ON public.profiles FOR UPDATE USING (auth.uid() = id);
+GRANT UPDATE (display_name, bio, avatar_url, onboarding_completed) ON public.profiles TO authenticated;
+
+-- Wallets & Specs
+CREATE POLICY "View own wallet" ON public.wallets FOR SELECT USING (auth.uid() = user_id);
+CREATE POLICY "Manage own specs" ON public.user_body_specs FOR ALL USING (auth.uid() = user_id);
+
+-- Items & Inventory
+CREATE POLICY "Public items" ON public.items FOR SELECT USING (true);
+CREATE POLICY "View own inventory" ON public.inventory FOR SELECT USING (auth.uid() = user_id);
+
+-- Posts
+CREATE POLICY "View public posts" ON public.posts FOR SELECT USING (is_hidden = FALSE OR auth.uid() = user_id);
+CREATE POLICY "Create posts" ON public.posts FOR INSERT WITH CHECK (auth.uid() = user_id);
+CREATE POLICY "Manage own posts" ON public.posts FOR UPDATE USING (auth.uid() = user_id);
+CREATE POLICY "Delete own posts" ON public.posts FOR DELETE USING (auth.uid() = user_id);
+
+-- Jobs
+CREATE POLICY "View own jobs" ON public.generation_jobs FOR SELECT USING (auth.uid() = user_id);
+CREATE POLICY "Create jobs" ON public.generation_jobs FOR INSERT WITH CHECK (auth.uid() = user_id);
+
+-- ====================================================
+-- 5. LOGIC & TRIGGERS
+-- ====================================================
+
+-- 5.1 [가입] 프로필/지갑/신체정보 자동 생성
+CREATE OR REPLACE FUNCTION public.handle_new_user()
+RETURNS TRIGGER LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
+BEGIN
+    INSERT INTO public.profiles (id, username, display_name, avatar_url, role, reputation_score, onboarding_completed)
+    VALUES (
+        NEW.id,
+        COALESCE(NEW.raw_user_meta_data->>'username', 'user_' || substr(md5(random()::text), 1, 8)),
+        COALESCE(NEW.raw_user_meta_data->>'display_name', 'New User'),
+        NEW.raw_user_meta_data->>'avatar_url',
+        'user',
+        100,
+        FALSE -- 온보딩 강제
+    ) ON CONFLICT (id) DO NOTHING;
+    
+    INSERT INTO public.wallets (user_id) VALUES (NEW.id) ON CONFLICT (user_id) DO NOTHING;
+    INSERT INTO public.user_body_specs (user_id) VALUES (NEW.id) ON CONFLICT (user_id) DO NOTHING;
+    RETURN NEW;
+END;
+$$;
+
+DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
+CREATE TRIGGER on_auth_user_created
+AFTER INSERT ON auth.users
+FOR EACH ROW EXECUTE FUNCTION public.handle_new_user();
+
+-- 5.2 [소셜] 좋아요 카운트 자동화
+CREATE OR REPLACE FUNCTION public.update_post_likes()
+RETURNS TRIGGER LANGUAGE plpgsql SECURITY DEFINER AS $$
+BEGIN
+    IF (TG_OP = 'INSERT') THEN
+        UPDATE public.posts SET likes_count = likes_count + 1 WHERE id = NEW.post_id;
+    ELSIF (TG_OP = 'DELETE') THEN
+        UPDATE public.posts SET likes_count = likes_count - 1 WHERE id = OLD.post_id;
+    END IF;
+    RETURN NULL;
+END;
+$$;
+
+CREATE TRIGGER trg_update_likes
+AFTER INSERT OR DELETE ON public.likes
+FOR EACH ROW EXECUTE FUNCTION public.update_post_likes();
+
+-- ====================================================
+-- 6. SEED DATA (초기 데이터)
+-- ====================================================
+
+-- 시스템 봇 계정
+INSERT INTO public.profiles (id, username, display_name, role)
+VALUES ('00000000-0000-0000-0000-000000000000', 'system', 'Dresaps System', 'gm')
+ON CONFLICT DO NOTHING;
+
+-- 기본 아이템 (화폐 단위별 가격 설정)
+INSERT INTO public.items (category, brand_name, price_film, price_points, metadata)
+VALUES 
+('TOP', 'Basic White Tee', 100, 100, '{"color": "#FFFFFF", "rarity": "COMMON"}'::jsonb),
+('BOTTOM', 'Classic Jeans', 150, 150, '{"color": "#0000FF", "rarity": "COMMON"}'::jsonb),
+('SHOES', 'Canvas Sneakers', 200, 200, '{"color": "#000000", "rarity": "COMMON"}'::jsonb)
+ON CONFLICT DO NOTHING;
